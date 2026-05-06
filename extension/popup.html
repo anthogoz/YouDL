@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YouDL</title>
+  <link rel="icon" type="image/png" href="icon128.png">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <div class="header">
+      <img src="icon128.png" alt="Logo" class="logo">
+      <h1>YouDL</h1>
+    </div>
+
+    <!-- Current Tab Info -->
+    <div class="tab-card" id="tabCard">
+      <div class="tab-icon">🎵</div>
+      <div class="tab-info">
+        <p class="tab-title" id="tabTitle">Loading...</p>
+        <p class="tab-url" id="tabUrl"></p>
+      </div>
+    </div>
+
+    <!-- Status -->
+    <div class="status-card" id="statusCard">
+      <div class="status-indicator" id="statusDot"></div>
+      <span class="status-text" id="statusText">Ready</span>
+    </div>
+
+    <!-- Download Buttons -->
+    <div class="download-actions">
+      <button id="downloadAudioBtn" class="btn-primary" disabled>
+        <span class="btn-icon">🎵</span>
+        <span id="btnAudioLabel">Download Audio</span>
+      </button>
+      <button id="downloadVideoBtn" class="btn-secondary" disabled>
+        <span class="btn-icon">🎬</span>
+        <span id="btnVideoLabel">Download Video</span>
+      </button>
+    </div>
+    <!-- Progress Container -->
+    <div id="progressContainer" class="progress-container hidden">
+      <div class="progress-info">
+        <span id="progressText">Downloading...</span>
+        <div class="progress-right">
+          <span id="progressDetail">--</span>
+          <button id="stopBtn" class="stop-btn" title="Cancel">⏹</button>
+        </div>
+      </div>
+      <div class="progress-bar-bg">
+        <div id="progressBar" class="progress-bar-fill"></div>
+      </div>
+    </div>
+
+    <!-- Response / Result -->
+    <div class="response-box hidden" id="responseBox">
+      <p class="response-label">Result</p>
+      <div class="response-value" id="responseValue">
+        <div id="resultTitle"></div>
+        <div class="file-path" id="filePath"></div>
+        <button id="openFolderBtn" class="btn-action hidden">📂 Open Location</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
