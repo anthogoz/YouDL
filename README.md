@@ -39,4 +39,4 @@ To allow the extension to save files on your PC, you need to register the "host"
 4. Your files will be saved in your `Downloads/YouDL` folder.
 
 ---
-*Developed with ❤️ to simplify your downloads.*
+*Vibecoded with ❤️ by anthogoz to simplify your downloads.*
