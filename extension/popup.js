@@ -1,159 +1,167 @@
 // ── DOM Elements ──
-const tabCard = document.getElementById("tabCard");
-const tabTitle = document.getElementById("tabTitle");
-const tabUrl = document.getElementById("tabUrl");
+const videoThumb = document.getElementById("videoThumb");
+const thumbPlaceholder = document.getElementById("thumbPlaceholder");
+const videoTitle = document.getElementById("videoTitle");
+const videoUploader = document.getElementById("videoUploader");
+const durationBadge = document.getElementById("durationBadge");
+
 const statusDot = document.getElementById("statusDot");
 const statusText = document.getElementById("statusText");
+
 const downloadAudioBtn = document.getElementById("downloadAudioBtn");
-const btnAudioLabel = document.getElementById("btnAudioLabel");
 const downloadVideoBtn = document.getElementById("downloadVideoBtn");
-const btnVideoLabel = document.getElementById("btnVideoLabel");
 
-const progressContainer = document.getElementById("progressContainer");
-const progressText = document.getElementById("progressText");
-const progressDetail = document.getElementById("progressDetail");
-const progressBar = document.getElementById("progressBar");
-const stopBtn = document.getElementById("stopBtn");
+const audioQualityGroup = document.getElementById("audioQualityGroup");
+const videoQualityGroup = document.getElementById("videoQualityGroup");
 
-const responseBox = document.getElementById("responseBox");
-const resultTitle = document.getElementById("resultTitle");
-const filePath = document.getElementById("filePath");
+const progressSection = document.getElementById("progressSection");
+const progressPercent = document.getElementById("progressPercent");
+const progressFill = document.getElementById("progressFill");
+const progressDetails = document.getElementById("progressDetails");
+const cancelBtn = document.getElementById("cancelBtn");
+
+const resultSection = document.getElementById("resultSection");
+const resultFilePath = document.getElementById("resultFilePath");
 const openFolderBtn = document.getElementById("openFolderBtn");
 
-// ── Current tab data ──
-let currentTabUrl = null;
+// ── State ──
+let currentUrl = "";
+let selectedAudioQuality = "best";
+let selectedVideoQuality = "best";
 
-// ── Helpers ──
-function setStatus(state, text) {
-  statusDot.className = "status-indicator " + state;
-  statusText.textContent = text;
-}
-
-function showResult(type, html, details = null) {
-  responseBox.classList.remove("hidden", "success-result", "error-result");
-  responseBox.classList.add(type === "success" ? "success-result" : "error-result");
-  
-  resultTitle.innerHTML = html;
-  
-  if (details && type === "success") {
-    filePath.textContent = details.file || "";
-    filePath.style.display = "block";
-    openFolderBtn.classList.remove("hidden");
-    openFolderBtn.dataset.path = details.file;
-  } else {
-    filePath.style.display = "none";
-    openFolderBtn.classList.add("hidden");
-  }
-}
-
-function isSupportedUrl(url) {
-  return url && (url.startsWith("http://") || url.startsWith("https://"));
-}
-
-// ── Detect current tab on popup open ──
+// ── Initialization ──
 chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-  if (!tabs || tabs.length === 0) {
-    tabTitle.textContent = "No active tab";
-    return;
-  }
-
+  if (!tabs || tabs.length === 0) return;
   const tab = tabs[0];
-  const url = tab.url || "";
-  const title = tab.title || "Untitled";
+  currentUrl = tab.url || "";
 
-  tabTitle.textContent = title;
-  tabUrl.textContent = url;
-
-  if (isSupportedUrl(url)) {
-    currentTabUrl = url;
-    downloadAudioBtn.disabled = false;
-    downloadVideoBtn.disabled = false;
-    setStatus("", "Ready to download");
+  if (isSupportedUrl(currentUrl)) {
+    // Initial UI state
+    videoTitle.textContent = "Fetching metadata...";
+    setStatus("loading", "Connecting to host...");
+    
+    // Request metadata from background
+    chrome.runtime.sendMessage({ type: "fetch_info", url: currentUrl });
   } else {
-    tabTitle.textContent = "⚠️ Unsupported webpage";
-    setStatus("error", "Open a site with media content");
+    videoTitle.textContent = "Unsupported website";
+    setStatus("error", "Navigate to a media site");
   }
   
-  // Interroger l'arrière-plan pour restaurer l'état
+  // Restore state from background
   chrome.runtime.sendMessage({ type: "get_state" }, (state) => {
-    if (state && state.status !== "idle") {
-      renderState(state);
-    }
+    renderState(state);
   });
 });
 
-// ── State Management ──
-function renderState(state) {
-  if (state.status === "downloading") {
-    setStatus("loading", "Downloading...");
-    downloadAudioBtn.disabled = true;
-    downloadVideoBtn.disabled = true;
-    
-    if (state.format === "audio") {
-      btnAudioLabel.textContent = "In progress...";
-    } else {
-      btnVideoLabel.textContent = "In progress...";
-    }
-    
-    responseBox.classList.add("hidden");
-    progressContainer.classList.remove("hidden");
-    progressBar.style.width = state.percent + "%";
-    progressText.textContent = state.text || (state.percent + "%");
-    progressDetail.textContent = state.details;
-    
-  } else if (state.status === "success") {
-    downloadAudioBtn.disabled = false;
-    downloadVideoBtn.disabled = false;
-    btnAudioLabel.textContent = "Download Audio";
-    btnVideoLabel.textContent = "Download Video";
-    
-    setStatus("success", "Finished ✓");
-    progressContainer.classList.add("hidden");
-    showResult("success", `✅ <strong>${state.title}</strong>`, { file: state.file });
-    
-  } else if (state.status === "error") {
-    downloadAudioBtn.disabled = false;
-    downloadVideoBtn.disabled = false;
-    btnAudioLabel.textContent = "Download Audio";
-    btnVideoLabel.textContent = "Download Video";
-    
-    setStatus("error", "Failed");
-    progressContainer.classList.add("hidden");
-    showResult("error", "❌ " + (state.errorMessage || "Unknown error"));
-  }
-}
-
-// Écouter les mises à jour en direct depuis l'arrière-plan
+// ── Listen for updates ──
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === "state_update") {
     renderState(message.state);
   }
 });
 
-// ── Download Action ──
-function doDownload(format) {
-  if (!currentTabUrl) return;
+// ── Helpers ──
+function isSupportedUrl(url) {
+  return url && (url.startsWith("http://") || url.startsWith("https://"));
+}
 
-  chrome.runtime.sendMessage({ type: "start_download", url: currentTabUrl, format: format });
-  
-  renderState({
-    status: "downloading",
-    percent: 0,
-    text: "Starting...",
-    details: "--",
-    format: format
+function setStatus(type, text) {
+  statusDot.className = "status-dot " + type;
+  statusText.textContent = text;
+}
+
+function renderState(state) {
+  // 1. Metadata
+  if (state.title) {
+    videoTitle.textContent = state.title;
+    videoUploader.textContent = state.uploader || "";
+  }
+  if (state.thumbnail) {
+    videoThumb.src = state.thumbnail;
+    videoThumb.classList.remove("hidden");
+    thumbPlaceholder.classList.add("hidden");
+  }
+  if (state.duration) {
+    durationBadge.textContent = state.duration;
+    durationBadge.classList.remove("hidden");
+  }
+
+  // 2. Status & Buttons
+  if (state.status === "loading_info") {
+    setStatus("loading", "Analyzing video...");
+    downloadAudioBtn.disabled = true;
+    downloadVideoBtn.disabled = true;
+  } else if (state.status === "downloading") {
+    setStatus("loading", "Downloading...");
+    downloadAudioBtn.disabled = true;
+    downloadVideoBtn.disabled = true;
+    progressSection.classList.remove("hidden");
+    resultSection.classList.add("hidden");
+    
+    progressPercent.textContent = state.text || "0%";
+    progressFill.style.width = state.percent + "%";
+    progressDetails.textContent = state.details || "Processing...";
+  } else if (state.status === "success") {
+    setStatus("active", "Download finished");
+    downloadAudioBtn.disabled = false;
+    downloadVideoBtn.disabled = false;
+    progressSection.classList.add("hidden");
+    resultSection.classList.remove("hidden");
+    resultFilePath.textContent = state.file || "";
+    openFolderBtn.dataset.path = state.file;
+  } else if (state.status === "error") {
+    setStatus("error", state.errorMessage || "Error occurred");
+    downloadAudioBtn.disabled = false;
+    downloadVideoBtn.disabled = false;
+    progressSection.classList.add("hidden");
+  } else {
+    // Idle
+    setStatus("active", "Ready");
+    downloadAudioBtn.disabled = false;
+    downloadVideoBtn.disabled = false;
+    progressSection.classList.add("hidden");
+  }
+}
+
+// ── Quality Selection ──
+function setupToggleGroup(group, callback) {
+  group.addEventListener("click", (e) => {
+    const btn = e.target.closest(".toggle-btn");
+    if (!btn) return;
+    
+    group.querySelectorAll(".toggle-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    callback(btn.dataset.quality);
   });
 }
 
-downloadAudioBtn.addEventListener("click", () => doDownload("audio"));
-downloadVideoBtn.addEventListener("click", () => doDownload("video"));
+setupToggleGroup(audioQualityGroup, (q) => selectedAudioQuality = q);
+setupToggleGroup(videoQualityGroup, (q) => selectedVideoQuality = q);
 
-stopBtn.addEventListener("click", () => {
+// ── Actions ──
+downloadAudioBtn.addEventListener("click", () => {
+  chrome.runtime.sendMessage({ 
+    type: "start_download", 
+    url: currentUrl, 
+    format: "audio", 
+    quality: selectedAudioQuality 
+  });
+});
+
+downloadVideoBtn.addEventListener("click", () => {
+  chrome.runtime.sendMessage({ 
+    type: "start_download", 
+    url: currentUrl, 
+    format: "video", 
+    quality: selectedVideoQuality 
+  });
+});
+
+cancelBtn.addEventListener("click", () => {
   chrome.runtime.sendMessage({ type: "cancel_download" });
 });
 
 openFolderBtn.addEventListener("click", () => {
   const path = openFolderBtn.dataset.path;
-  if (!path) return;
-  chrome.runtime.sendMessage({ type: "open_folder", path: path });
+  if (path) chrome.runtime.sendMessage({ type: "open_folder", path: path });
 });

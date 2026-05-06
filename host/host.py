@@ -38,10 +38,11 @@ def send_message(message):
         raise ConnectionError("Chrome disconnected")
 
 
-def download_media(url, format_type, progress_callback):
+def download_media(url, format_type, progress_callback, quality="best"):
     """
-    Download media from a YouTube URL using yt-dlp.
+    Download media from a URL using yt-dlp.
     format_type can be 'audio' or 'video'.
+    quality can be 'best', '320', '128' for audio, or '1080', '720' for video.
     Calls progress_callback with updates.
     Returns the target directory on success.
     """
@@ -52,13 +53,17 @@ def download_media(url, format_type, progress_callback):
         os.makedirs(target_dir, exist_ok=True)
         output_template = str(target_dir / "%(title)s.%(ext)s")
         
+        audio_quality = "0" # Default best (320)
+        if quality == "128":
+            audio_quality = "5"
+        
         cmd = [
             "yt-dlp",
             "--no-warnings",
             "--newline",
             "--extract-audio",
             "--audio-format", "mp3",
-            "--audio-quality", "0",
+            "--audio-quality", audio_quality,
             "--embed-metadata",
             "--embed-thumbnail",
             "--output", output_template,
@@ -70,11 +75,18 @@ def download_media(url, format_type, progress_callback):
         os.makedirs(target_dir, exist_ok=True)
         output_template = str(target_dir / "%(title)s.%(ext)s")
         
+        # Quality selection for video
+        video_format = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
+        if quality == "1080":
+            video_format = "bestvideo[height<=1080][ext=mp4]+bestaudio[ext=m4a]/best[height<=1080][ext=mp4]/best"
+        elif quality == "720":
+            video_format = "bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best"
+
         cmd = [
             "yt-dlp",
             "--no-warnings",
             "--newline",
-            "--format", "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+            "--format", video_format,
             "--merge-output-format", "mp4",
             "--embed-metadata",
             "--embed-thumbnail",
@@ -164,16 +176,44 @@ def main():
                 "detail": "Native host is running!",
             })
 
+        elif action == "get_info":
+            url = message.get("url", "")
+            if not url:
+                send_message({"status": "error", "detail": "No URL provided"})
+                continue
+            
+            try:
+                # Use yt-dlp to get video metadata
+                cmd = ["yt-dlp", "-j", "--no-playlist", "--flat-playlist", url]
+                result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", creationflags=subprocess.CREATE_NO_WINDOW)
+                
+                if result.returncode != 0:
+                    send_message({"status": "error", "detail": "Could not fetch metadata"})
+                    continue
+                
+                info = json.loads(result.stdout)
+                send_message({
+                    "status": "info_result",
+                    "title": info.get("title", "Unknown"),
+                    "thumbnail": info.get("thumbnail", ""),
+                    "duration": info.get("duration_string", ""),
+                    "uploader": info.get("uploader", ""),
+                })
+            except Exception as e:
+                send_message({"status": "error", "detail": str(e)})
+
         elif action == "download":
             url = message.get("url", "")
             format_type = message.get("format", "audio")
+            quality = message.get("quality", "best") # 'best', '1080', '720' etc.
             
             if not url:
                 send_message({"status": "error", "detail": "No URL provided"})
                 continue
 
             try:
-                target_dir = download_media(url, format_type, send_message)
+                # Pass quality info to download_media
+                target_dir = download_media(url, format_type, send_message, quality=quality)
                 send_message({
                     "status": "ok",
                     "title": "Download finished",

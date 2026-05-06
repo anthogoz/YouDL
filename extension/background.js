@@ -2,14 +2,18 @@ const HOST_NAME = "com.typebeat.downloader";
 
 let nativePort = null;
 let downloadState = {
-  status: "idle", // idle, downloading, success, error
+  status: "idle", // idle, loading_info, downloading, success, error
   percent: 0,
   details: "",
   text: "",
   title: "",
+  thumbnail: "",
+  duration: "",
+  uploader: "",
   file: "",
   errorMessage: "",
-  format: ""
+  format: "",
+  quality: "best"
 };
 
 // Listen for connections from popup
@@ -19,8 +23,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
   
+  if (message.type === "fetch_info") {
+    fetchInfo(message.url);
+    sendResponse({ success: true });
+    return true;
+  }
+  
   if (message.type === "start_download") {
-    startDownload(message.url, message.format);
+    startDownload(message.url, message.format, message.quality);
     sendResponse({ success: true });
     return true;
   }
@@ -50,73 +60,89 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 function broadcastState() {
-  chrome.runtime.sendMessage({ type: "state_update", state: downloadState }).catch(() => {
-    // Popup might be closed, ignore error
-  });
+  chrome.runtime.sendMessage({ type: "state_update", state: downloadState }).catch(() => {});
 }
 
-function startDownload(url, format) {
-  if (downloadState.status === "downloading") return;
-  
-  downloadState = {
-    status: "downloading",
-    percent: 0,
-    details: "--",
-    text: "Starting...",
-    title: "",
-    file: "",
-    errorMessage: "",
-    format: format
-  };
-  broadcastState();
-
+function ensureNativePort() {
   if (!nativePort) {
     nativePort = chrome.runtime.connectNative(HOST_NAME);
-    
-    nativePort.onMessage.addListener((response) => {
-      if (response.status === "progress") {
-        downloadState.status = "downloading";
-        downloadState.percent = response.percent;
-        
-        const details = [];
-        if (response.size) details.push(response.size);
-        if (response.speed) details.push(response.speed);
-        if (response.eta) details.push("ETA: " + response.eta);
-        
-        downloadState.details = details.join(" • ");
-        downloadState.text = response.percent + "%";
-        broadcastState();
-        
-      } else if (response.status === "info") {
-        downloadState.status = "downloading";
-        // Truncate text if it's too long
-        downloadState.text = response.text.length > 50 ? response.text.substring(0, 47) + "..." : response.text;
-        downloadState.details = "Processing...";
-        broadcastState();
-        
-      } else if (response.status === "ok" && response.file) { // Download response
-        downloadState.status = "success";
-        downloadState.title = response.title;
-        downloadState.file = response.file;
-        broadcastState();
-        
-      } else if (response.status === "error") {
-        downloadState.status = "error";
-        downloadState.errorMessage = response.detail || "Unknown error";
-        broadcastState();
-      }
-    });
-
-    nativePort.onDisconnect.addListener(() => {
-      console.error("Native port disconnected:", chrome.runtime.lastError);
-      nativePort = null;
-      if (downloadState.status === "downloading") {
-        downloadState.status = "error";
-        downloadState.errorMessage = "Native host disconnected";
-        broadcastState();
-      }
-    });
+    nativePort.onMessage.addListener(handleNativeMessage);
+    nativePort.onDisconnect.addListener(handleNativeDisconnect);
   }
+  return nativePort;
+}
 
-  nativePort.postMessage({ action: "download", url: url, format: format });
+function handleNativeMessage(response) {
+  if (response.status === "info_result") {
+    downloadState.status = "idle";
+    downloadState.title = response.title;
+    downloadState.thumbnail = response.thumbnail;
+    downloadState.duration = response.duration;
+    downloadState.uploader = response.uploader;
+    broadcastState();
+    
+  } else if (response.status === "progress") {
+    downloadState.status = "downloading";
+    downloadState.percent = response.percent;
+    
+    const details = [];
+    if (response.size) details.push(response.size);
+    if (response.speed) details.push(response.speed);
+    if (response.eta) details.push("ETA: " + response.eta);
+    
+    downloadState.details = details.join(" • ");
+    downloadState.text = response.percent + "%";
+    broadcastState();
+    
+  } else if (response.status === "info") {
+    downloadState.status = "downloading";
+    downloadState.text = response.text.length > 50 ? response.text.substring(0, 47) + "..." : response.text;
+    downloadState.details = "Processing...";
+    broadcastState();
+    
+  } else if (response.status === "ok" && response.file) {
+    downloadState.status = "success";
+    downloadState.title = response.title || downloadState.title;
+    downloadState.file = response.file;
+    broadcastState();
+    
+  } else if (response.status === "error") {
+    downloadState.status = "error";
+    downloadState.errorMessage = response.detail || "Unknown error";
+    broadcastState();
+  }
+}
+
+function handleNativeDisconnect() {
+  nativePort = null;
+  if (downloadState.status === "downloading" || downloadState.status === "loading_info") {
+    downloadState.status = "error";
+    downloadState.errorMessage = "Native host disconnected";
+    broadcastState();
+  }
+}
+
+function fetchInfo(url) {
+  downloadState.status = "loading_info";
+  broadcastState();
+  ensureNativePort().postMessage({ action: "get_info", url: url });
+}
+
+function startDownload(url, format, quality) {
+  if (downloadState.status === "downloading") return;
+  
+  downloadState.status = "downloading";
+  downloadState.percent = 0;
+  downloadState.details = "--";
+  downloadState.text = "Starting...";
+  downloadState.format = format;
+  downloadState.quality = quality;
+  broadcastState();
+
+  ensureNativePort().postMessage({ 
+    action: "download", 
+    url: url, 
+    format: format, 
+    quality: quality 
+  });
 }

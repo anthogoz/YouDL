@@ -3,66 +3,96 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YouDL</title>
+  <title>YouDL Premium</title>
   <link rel="icon" type="image/png" href="icon128.png">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
+  <div class="glass-bg"></div>
   <div class="container">
     <!-- Header -->
     <div class="header">
-      <img src="icon128.png" alt="Logo" class="logo">
-      <h1>YouDL</h1>
-    </div>
-
-    <!-- Current Tab Info -->
-    <div class="tab-card" id="tabCard">
-      <div class="tab-icon">🎵</div>
-      <div class="tab-info">
-        <p class="tab-title" id="tabTitle">Loading...</p>
-        <p class="tab-url" id="tabUrl"></p>
+      <div class="logo-wrapper">
+        <img src="icon128.png" alt="Logo" class="logo">
+      </div>
+      <div class="header-text">
+        <h1>YouDL</h1>
       </div>
     </div>
 
-    <!-- Status -->
-    <div class="status-card" id="statusCard">
-      <div class="status-indicator" id="statusDot"></div>
-      <span class="status-text" id="statusText">Ready</span>
+    <!-- Preview Card -->
+    <div class="preview-card" id="previewCard">
+      <div class="thumbnail-container">
+        <img id="videoThumb" src="" alt="" class="thumbnail hidden">
+        <div id="thumbPlaceholder" class="thumb-placeholder">
+          <div class="pulse-loader"></div>
+        </div>
+        <div id="durationBadge" class="duration-badge hidden">00:00</div>
+      </div>
+      <div class="video-meta">
+        <p class="video-title" id="videoTitle">Analyzing content...</p>
+        <p class="video-uploader" id="videoUploader"></p>
+      </div>
     </div>
 
-    <!-- Download Buttons -->
-    <div class="download-actions">
-      <button id="downloadAudioBtn" class="btn-primary" disabled>
-        <span class="btn-icon">🎵</span>
-        <span id="btnAudioLabel">Download Audio</span>
-      </button>
-      <button id="downloadVideoBtn" class="btn-secondary" disabled>
-        <span class="btn-icon">🎬</span>
-        <span id="btnVideoLabel">Download Video</span>
-      </button>
+    <!-- Status Bar -->
+    <div class="status-bar" id="statusBar">
+      <div class="status-dot" id="statusDot"></div>
+      <span id="statusText">Checking connection...</span>
     </div>
-    <!-- Progress Container -->
-    <div id="progressContainer" class="progress-container hidden">
-      <div class="progress-info">
-        <span id="progressText">Downloading...</span>
-        <div class="progress-right">
-          <span id="progressDetail">--</span>
-          <button id="stopBtn" class="stop-btn" title="Cancel">⏹</button>
+
+    <!-- Settings / Quality -->
+    <div class="options-grid">
+      <div class="option-group">
+        <label>Audio Quality</label>
+        <div class="toggle-group" id="audioQualityGroup">
+          <button class="toggle-btn active" data-quality="best">320k</button>
+          <button class="toggle-btn" data-quality="128">128k</button>
         </div>
       </div>
-      <div class="progress-bar-bg">
-        <div id="progressBar" class="progress-bar-fill"></div>
+      <div class="option-group">
+        <label>Video Quality</label>
+        <div class="toggle-group" id="videoQualityGroup">
+          <button class="toggle-btn active" data-quality="best">Best</button>
+          <button class="toggle-btn" data-quality="1080">1080p</button>
+          <button class="toggle-btn" data-quality="720">720p</button>
+        </div>
       </div>
     </div>
 
-    <!-- Response / Result -->
-    <div class="response-box hidden" id="responseBox">
-      <p class="response-label">Result</p>
-      <div class="response-value" id="responseValue">
-        <div id="resultTitle"></div>
-        <div class="file-path" id="filePath"></div>
-        <button id="openFolderBtn" class="btn-action hidden">📂 Open Location</button>
+    <!-- Actions -->
+    <div class="actions">
+      <button id="downloadAudioBtn" class="btn btn-audio" disabled>
+        <span class="icon">🎵</span> Download MP3
+      </button>
+      <button id="downloadVideoBtn" class="btn btn-video" disabled>
+        <span class="icon">🎬</span> Download MP4
+      </button>
+    </div>
+
+    <!-- Progress -->
+    <div id="progressSection" class="progress-section hidden">
+      <div class="progress-header">
+        <span id="progressLabel">Downloading...</span>
+        <span id="progressPercent">0%</span>
       </div>
+      <div class="progress-track">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+      <div class="progress-footer">
+        <span id="progressDetails">-- MB • -- MB/s</span>
+        <button id="cancelBtn" class="cancel-link">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div id="resultSection" class="result-section hidden">
+      <div class="result-icon">✅</div>
+      <div class="result-text">
+        <p>Finished Successfully</p>
+        <small id="resultFilePath"></small>
+      </div>
+      <button id="openFolderBtn" class="btn-outline">Open Folder</button>
     </div>
   </div>
 
