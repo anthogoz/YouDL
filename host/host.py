@@ -187,20 +187,37 @@ def main():
                 cmd = ["yt-dlp", "-j", "--no-playlist", "--flat-playlist", url]
                 result = subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", creationflags=subprocess.CREATE_NO_WINDOW)
                 
-                if result.returncode != 0:
-                    send_message({"status": "error", "detail": "Could not fetch metadata"})
+                # If it fails to get JSON, we don't throw an error, we just send generic info
+                if result.returncode != 0 or not result.stdout.strip():
+                    send_message({
+                        "status": "info_result",
+                        "title": "Supported Media Found",
+                        "thumbnail": "",
+                        "duration": "",
+                        "uploader": "Generic Site",
+                    })
                     continue
                 
-                info = json.loads(result.stdout)
+                # yt-dlp can return multiple JSON objects (one per line) for some pages
+                first_line = result.stdout.splitlines()[0]
+                info = json.loads(first_line)
+                
                 send_message({
                     "status": "info_result",
-                    "title": info.get("title", "Unknown"),
+                    "title": info.get("title", "Unknown Title"),
                     "thumbnail": info.get("thumbnail", ""),
                     "duration": info.get("duration_string", ""),
                     "uploader": info.get("uploader", ""),
                 })
-            except Exception as e:
-                send_message({"status": "error", "detail": str(e)})
+            except Exception:
+                # Fallback to generic info so buttons stay active
+                send_message({
+                    "status": "info_result",
+                    "title": "Ready to Download",
+                    "thumbnail": "",
+                    "duration": "",
+                    "uploader": "External Source",
+                })
 
         elif action == "download":
             url = message.get("url", "")

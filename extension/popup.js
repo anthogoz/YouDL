@@ -80,10 +80,18 @@ function renderState(state) {
     videoThumb.src = state.thumbnail;
     videoThumb.classList.remove("hidden");
     thumbPlaceholder.classList.add("hidden");
+  } else {
+    videoThumb.classList.add("hidden");
+    thumbPlaceholder.classList.remove("hidden");
+    // Add a default icon to the placeholder if empty
+    thumbPlaceholder.innerHTML = '<span style="font-size: 24px; opacity: 0.5;">🌐</span>';
   }
+  
   if (state.duration) {
     durationBadge.textContent = state.duration;
     durationBadge.classList.remove("hidden");
+  } else {
+    durationBadge.classList.add("hidden");
   }
 
   // 2. Status & Buttons
