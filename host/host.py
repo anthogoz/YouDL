@@ -12,6 +12,29 @@ import subprocess
 import os
 import re
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+
+def clean_url(url):
+    """
+    If the URL is a YouTube video with playlist/mix params (e.g. &list=RD...),
+    strip the playlist params so yt-dlp only downloads the single video.
+    Pure playlist URLs (no video ID) are left untouched.
+    """
+    parsed = urlparse(url)
+    if parsed.hostname not in ("www.youtube.com", "youtube.com", "m.youtube.com"):
+        return url
+
+    params = parse_qs(parsed.query, keep_blank_values=True)
+
+    # If there's a video ID AND a list param, it's a single video in a playlist context
+    if "v" in params and "list" in params:
+        # Keep only the video ID, drop playlist-related params
+        clean_params = {"v": params["v"]}
+        clean_query = urlencode(clean_params, doseq=True)
+        return urlunparse(parsed._replace(query=clean_query))
+
+    return url
+
 
 def read_message():
     """Read a single message from stdin (sent by Chrome)."""
@@ -46,6 +69,7 @@ def download_media(url, format_type, progress_callback, quality="best"):
     Calls progress_callback with updates.
     Returns the target directory on success.
     """
+    url = clean_url(url)
     downloads_dir = Path.home() / "Downloads" / "YouDL"
     
     if format_type == "audio":
