@@ -1,11 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>YouDL Premium</title>
-  <link rel="icon" type="image/png" href="icon128.png">
-  <link rel="stylesheet" href="popup.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouDL</title>
 </head>
 <body>
   <div class="glass-bg"></div>
@@ -13,7 +11,7 @@
     <!-- Header -->
     <div class="header">
       <div class="logo-wrapper">
-        <img src="icon128.png" alt="Logo" class="logo">
+        <img src="/icon/128.png" alt="Logo" class="logo" />
       </div>
       <div class="header-text">
         <h1>YouDL</h1>
@@ -23,7 +21,7 @@
     <!-- Preview Card -->
     <div class="preview-card" id="previewCard">
       <div class="thumbnail-container">
-        <img id="videoThumb" src="" alt="" class="thumbnail hidden">
+        <img id="videoThumb" src="" alt="" class="thumbnail hidden" />
         <div id="thumbPlaceholder" class="thumb-placeholder">
           <div class="pulse-loader"></div>
         </div>
@@ -46,26 +44,26 @@
       <div class="option-group">
         <label>Audio Quality</label>
         <div class="toggle-group" id="audioQualityGroup">
-          <button class="toggle-btn active" data-quality="best">320k</button>
-          <button class="toggle-btn" data-quality="128">128k</button>
+          <button type="button" class="toggle-btn active" data-quality="best">320k</button>
+          <button type="button" class="toggle-btn" data-quality="128">128k</button>
         </div>
       </div>
       <div class="option-group">
         <label>Video Quality</label>
         <div class="toggle-group" id="videoQualityGroup">
-          <button class="toggle-btn active" data-quality="best">Best</button>
-          <button class="toggle-btn" data-quality="1080">1080p</button>
-          <button class="toggle-btn" data-quality="720">720p</button>
+          <button type="button" class="toggle-btn active" data-quality="best">Best</button>
+          <button type="button" class="toggle-btn" data-quality="1080">1080p</button>
+          <button type="button" class="toggle-btn" data-quality="720">720p</button>
         </div>
       </div>
     </div>
 
     <!-- Actions -->
     <div class="actions">
-      <button id="downloadAudioBtn" class="btn btn-audio" disabled>
+      <button type="button" id="downloadAudioBtn" class="btn btn-audio" disabled>
         <span class="icon">🎵</span> Download MP3
       </button>
-      <button id="downloadVideoBtn" class="btn btn-video" disabled>
+      <button type="button" id="downloadVideoBtn" class="btn btn-video" disabled>
         <span class="icon">🎬</span> Download MP4
       </button>
     </div>
@@ -81,7 +79,7 @@
       </div>
       <div class="progress-footer">
         <span id="progressDetails">-- MB • -- MB/s</span>
-        <button id="cancelBtn" class="cancel-link">Cancel</button>
+        <button type="button" id="cancelBtn" class="cancel-link">Cancel</button>
       </div>
     </div>
 
@@ -92,10 +90,10 @@
         <p>Finished Successfully</p>
         <small id="resultFilePath"></small>
       </div>
-      <button id="openFolderBtn" class="btn-outline">Open Folder</button>
+      <button type="button" id="openFolderBtn" class="btn-outline">Open Folder</button>
     </div>
   </div>
 
-  <script src="popup.js"></script>
+  <script type="module" src="./index.ts"></script>
 </body>
 </html>

@@ -20,3 +20,30 @@ Thumbs.db
 
 # Design files
 extension/youdl.psd
+
+# Temp
+temp/
+
+# Dependencies
+node_modules/
+
+# WXT files
+.output/
+.wxt/
+dist/
+
+# Logs & Build
+*.log
+*.tsbuildinfo
+npm-debug.log*
+tmp/
+
+# Extension package files
+*.zip
+*.crx
+*.pem
+
+# Environment
+.env
+.env.*
+!.env.example

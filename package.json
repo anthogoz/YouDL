@@ -1,0 +1,41 @@
+{
+  "name": "youdl",
+  "description": "Download media from virtually any website (YouTube, SoundCloud, etc.) as Audio or Video.",
+  "version": "1.2.5",
+  "author": "Lnkhey",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/anthogoz/YouDL.git"
+  },
+  "keywords": [
+    "chrome-extension",
+    "youtube",
+    "downloader",
+    "yt-dlp",
+    "native-messaging"
+  ],
+  "bugs": {
+    "url": "https://github.com/anthogoz/YouDL/issues"
+  },
+  "homepage": "https://github.com/anthogoz/YouDL#readme",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt --browser firefox",
+    "build": "wxt build",
+    "build:firefox": "wxt build --browser firefox",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip --browser firefox",
+    "lint": "biome lint",
+    "lint:fix": "biome lint --write",
+    "format": "biome format --write",
+    "postinstall": "wxt prepare"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.14",
+    "typescript": "^6.0.3",
+    "wxt": "^0.20.25"
+  }
+}
