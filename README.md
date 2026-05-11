@@ -1,5 +1,7 @@
 # 📥 YouDL
 
+> 🇫🇷 [Français](README.fr.md)
+
 YouDL is a powerful, minimalist browser extension that serves as a **GUI for [yt-dlp](https://github.com/yt-dlp/yt-dlp)**. It allows you to download media from **virtually any website** (YouTube, SoundCloud, Twitter, Instagram, TikTok, and 1000+ others) directly in Audio (MP3) or Video (MP4) format.
 
 ## ✨ Features
