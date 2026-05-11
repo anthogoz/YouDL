@@ -39,8 +39,10 @@ jobs:
       - name: Normalize and validate version
         id: version
         shell: bash
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         run: |
-          RAW_VERSION="${{ github.event.inputs.version }}"
+          RAW_VERSION="$INPUT_VERSION"
           NORMALIZED="${RAW_VERSION#v}"
           TAG="v$NORMALIZED"
 
@@ -68,7 +70,9 @@ jobs:
           echo "✅ Version $NORMALIZED validated"
 
       - name: Bump package version
-        run: npm version "${{ steps.version.outputs.version }}" --no-git-tag-version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: npm version "$VERSION" --no-git-tag-version
 
       - name: Lint
         run: npm run lint
@@ -82,8 +86,9 @@ jobs:
       - name: Package release zips
         id: package
         shell: bash
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          VERSION="${{ steps.version.outputs.version }}"
 
           # --- Chrome zip ---
           CHROME_DIR="release-chrome"
@@ -131,15 +136,17 @@ jobs:
           if git diff --cached --quiet; then
             echo "No version changes to commit"
           else
-            git commit -m "chore(release): bump version to ${{ steps.version.outputs.version }}"
+            git commit -m "chore(release): bump version to $VERSION"
           fi
 
       - name: Push commit and tag
         shell: bash
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
         run: |
           git push origin "HEAD:${GITHUB_REF_NAME}"
-          git tag "${{ steps.version.outputs.tag }}"
-          git push origin "${{ steps.version.outputs.tag }}"
+          git tag "$TAG"
+          git push origin "$TAG"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0

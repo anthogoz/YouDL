@@ -84,7 +84,7 @@ function renderState(state: DownloadState): void {
   } else {
     videoThumb.classList.add('hidden');
     thumbPlaceholder.classList.remove('hidden');
-    thumbPlaceholder.innerHTML = '<span style="font-size: 24px; opacity: 0.5;">🌐</span>';
+    thumbPlaceholder.textContent = '🌐';
   }
 
   if (state.duration) {

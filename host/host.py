@@ -36,6 +36,9 @@ def clean_url(url):
     return url
 
 
+MAX_MESSAGE_SIZE = 1024 * 1024  # 1 MB — Chrome enforces this limit too
+
+
 def read_message():
     """Read a single message from stdin (sent by Chrome)."""
     raw_length = sys.stdin.buffer.read(4)
@@ -43,6 +46,9 @@ def read_message():
         return None
 
     message_length = struct.unpack("<I", raw_length)[0]
+    if message_length > MAX_MESSAGE_SIZE:
+        return None
+
     raw_message = sys.stdin.buffer.read(message_length)
     if not raw_message:
         return None
@@ -61,6 +67,15 @@ def send_message(message):
         raise ConnectionError("Chrome disconnected")
 
 
+ALLOWED_URL_SCHEMES = ("http://", "https://")
+DOWNLOADS_DIR = Path.home() / "Downloads" / "YouDL"
+
+
+def is_safe_url(url):
+    """Validate URL uses an allowed scheme (http/https only)."""
+    return isinstance(url, str) and url.startswith(ALLOWED_URL_SCHEMES)
+
+
 def download_media(url, format_type, progress_callback, quality="best"):
     """
     Download media from a URL using yt-dlp.
@@ -70,7 +85,7 @@ def download_media(url, format_type, progress_callback, quality="best"):
     Returns the target directory on success.
     """
     url = clean_url(url)
-    downloads_dir = Path.home() / "Downloads" / "YouDL"
+    downloads_dir = DOWNLOADS_DIR
     
     if format_type == "audio":
         target_dir = downloads_dir / "Audio"
@@ -205,6 +220,9 @@ def main():
             if not url:
                 send_message({"status": "error", "detail": "No URL provided"})
                 continue
+            if not is_safe_url(url):
+                send_message({"status": "error", "detail": "Invalid URL scheme"})
+                continue
             
             try:
                 # Use yt-dlp to get video metadata
@@ -251,6 +269,9 @@ def main():
             if not url:
                 send_message({"status": "error", "detail": "No URL provided"})
                 continue
+            if not is_safe_url(url):
+                send_message({"status": "error", "detail": "Invalid URL scheme"})
+                continue
 
             try:
                 # Pass quality info to download_media
@@ -274,12 +295,19 @@ def main():
             if not filepath or not os.path.exists(filepath):
                 send_message({"status": "error", "detail": "File not found"})
                 continue
+
+            # Security: restrict to YouDL downloads directory only
+            normalized = os.path.normpath(os.path.abspath(filepath))
+            allowed_dir = os.path.normpath(str(DOWNLOADS_DIR))
+            if not normalized.startswith(allowed_dir):
+                send_message({"status": "error", "detail": "Path outside allowed directory"})
+                continue
             
             try:
-                if os.path.isdir(filepath):
-                    subprocess.run(['explorer', os.path.normpath(filepath)])
+                if os.path.isdir(normalized):
+                    subprocess.run(['explorer', normalized])
                 else:
-                    subprocess.run(['explorer', '/select,', os.path.normpath(filepath)])
+                    subprocess.run(['explorer', '/select,', normalized])
                 send_message({"status": "ok"})
             except Exception as e:
                 send_message({"status": "error", "detail": str(e)})
