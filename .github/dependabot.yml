@@ -1,0 +1,36 @@
+version: 2
+updates:
+  # NPM dependencies
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      timezone: 'UTC'
+    target-branch: 'main'
+    open-pull-requests-limit: 8
+    commit-message:
+      prefix: 'deps (app)'
+    labels:
+      - 'dependencies'
+    groups:
+      security:
+        applies-to: security-updates
+        patterns:
+          - '*'
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - 'minor'
+          - 'patch'
+
+  # GitHub Actions dependencies
+  - package-ecosystem: 'github-actions'
+    directory: '/'
+    schedule:
+      interval: 'weekly'
+      timezone: 'UTC'
+    target-branch: 'main'
+    commit-message:
+      prefix: 'deps (ci)'
+    labels:
+      - 'dependencies'
