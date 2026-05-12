@@ -22,7 +22,7 @@ const totalTimeEl = document.getElementById('totalTime') as HTMLSpanElement;
 
 const timelineContainer = document.getElementById('timelineContainer') as HTMLDivElement;
 const timelineWaveform = document.getElementById('timelineWaveform') as HTMLImageElement;
-const timelineTrack = document.getElementById('timelineTrack') as HTMLDivElement;
+// const timelineTrack = document.getElementById('timelineTrack') as HTMLDivElement;
 const timelinePlayed = document.getElementById('timelinePlayed') as HTMLDivElement;
 const trimRegion = document.getElementById('trimRegion') as HTMLDivElement;
 const playhead = document.getElementById('playhead') as HTMLDivElement;
@@ -206,7 +206,7 @@ function parseTimeInput(input: string): number | null {
   const secs = parseInt(secsParts[0], 10);
   const ms = secsParts.length > 1 ? parseInt(secsParts[1], 10) : 0;
   
-  if (isNaN(mins) || isNaN(secs) || isNaN(ms)) return null;
+  if (Number.isNaN(mins) || Number.isNaN(secs) || Number.isNaN(ms)) return null;
   return mins * 60 + secs + ms / 1000;
 }
 

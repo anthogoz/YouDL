@@ -25,7 +25,7 @@ const downloadState: DownloadState = {
 export default defineBackground(() => {
   // Listen for connections from popup
   browser.runtime.onMessage.addListener(
-    (message: any, sender: any, sendResponse: (response?: any) => void) => {
+    (message: any, _sender: any, sendResponse: (response?: any) => void) => {
       if (message.type === 'get_state') {
         sendResponse(downloadState);
         return true;

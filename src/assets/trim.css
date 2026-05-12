@@ -264,7 +264,7 @@ body {
 }
 
 .time-separator {
-  color: var(--accent-secondary) !important;
+  color: var(--accent-secondary);
   margin: 0 2px;
 }
 
@@ -773,4 +773,4 @@ body {
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-.hidden { display: none !important; }
+.hidden { display: none; }
