@@ -15,6 +15,15 @@ YouDL est une extension navigateur minimaliste et puissante qui sert d'**interfa
 - **Intégration native** : Fonctionne directement depuis la barre d'outils du navigateur.
 - **Rapide et fiable** : Exploite la puissance de `yt-dlp` en backend.
 
+## ⚠️ Pourquoi n'est-il pas sur le Chrome Web Store ?
+
+YouDL ne peut pas être publié sur les stores officiels (Chrome Web Store, Firefox Add-ons) pour deux raisons majeures :
+
+1. **Politique YouTube de Google** : Le Chrome Store interdit strictement toute extension permettant de télécharger des vidéos depuis YouTube. Tout outil facilitant cela est automatiquement banni.
+2. **Besoin d'un Hôte Natif** : Pour offrir des téléchargements haute performance et un découpage (trimming) sans perte, YouDL nécessite un « Hôte Natif » (un script Python) pour interagir avec `yt-dlp` et `ffmpeg` sur votre système. Les stores officiels n'autorisent que les extensions autonomes et interdisent les scripts externes ou les ponts avec le système local pour des raisons de sécurité et de politique.
+
+C'est pourquoi YouDL est distribué via **GitHub Releases** et doit être installé manuellement.
+
 ## 🛠️ Installation
 
 ### 1. Prérequis
