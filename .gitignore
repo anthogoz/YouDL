@@ -47,3 +47,13 @@ tmp/
 .env
 .env.*
 !.env.example
+
+# Accidental Media Downloads
+*.mp3
+*.mp4
+*.webm
+*.wav
+*.m4a
+
+# Binaries
+*.exe

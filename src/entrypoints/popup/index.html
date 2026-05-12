@@ -16,81 +16,113 @@
       <div class="header-text">
         <h1>YouDL</h1>
       </div>
+      <button type="button" class="settings-toggle" id="settingsToggle" title="Settings">⚙️</button>
     </div>
 
-    <!-- Preview Card -->
-    <div class="preview-card" id="previewCard">
-      <div class="thumbnail-container">
-        <img id="videoThumb" src="" alt="" class="thumbnail hidden" />
-        <div id="thumbPlaceholder" class="thumb-placeholder">
-          <div class="pulse-loader"></div>
+    <!-- MAIN HOME SECTION -->
+    <div id="homeSection">
+      <!-- Preview Card -->
+      <div class="preview-card" id="previewCard">
+        <div class="thumbnail-container">
+          <img id="videoThumb" src="" alt="" class="thumbnail hidden" />
+          <div id="thumbPlaceholder" class="thumb-placeholder">
+            <div class="pulse-loader"></div>
+          </div>
+          <div id="durationBadge" class="duration-badge hidden">00:00</div>
         </div>
-        <div id="durationBadge" class="duration-badge hidden">00:00</div>
-      </div>
-      <div class="video-meta">
-        <p class="video-title" id="videoTitle">Analyzing content...</p>
-        <p class="video-uploader" id="videoUploader"></p>
-      </div>
-    </div>
-
-    <!-- Status Bar -->
-    <div class="status-bar" id="statusBar">
-      <div class="status-dot" id="statusDot"></div>
-      <span id="statusText">Checking connection...</span>
-    </div>
-
-    <!-- Settings / Quality -->
-    <div class="options-grid">
-      <div class="option-group">
-        <label>Audio Quality</label>
-        <div class="toggle-group" id="audioQualityGroup">
-          <button type="button" class="toggle-btn active" data-quality="best">320k</button>
-          <button type="button" class="toggle-btn" data-quality="128">128k</button>
+        <div class="video-meta">
+          <p class="video-title" id="videoTitle">Analyzing content...</p>
+          <p class="video-uploader" id="videoUploader"></p>
         </div>
       </div>
-      <div class="option-group">
-        <label>Video Quality</label>
-        <div class="toggle-group" id="videoQualityGroup">
-          <button type="button" class="toggle-btn active" data-quality="best">Best</button>
-          <button type="button" class="toggle-btn" data-quality="1080">1080p</button>
-          <button type="button" class="toggle-btn" data-quality="720">720p</button>
+
+      <!-- Status Bar -->
+      <div class="status-bar" id="statusBar">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Checking connection...</span>
+      </div>
+
+      <!-- Settings / Quality -->
+      <div class="options-grid">
+        <div class="option-group">
+          <label>Audio Quality</label>
+          <div class="toggle-group" id="audioQualityGroup">
+            <button type="button" class="toggle-btn active" data-quality="best">320k</button>
+            <button type="button" class="toggle-btn" data-quality="128">128k</button>
+          </div>
+        </div>
+        <div class="option-group">
+          <label>Video Quality</label>
+          <div class="toggle-group" id="videoQualityGroup">
+            <button type="button" class="toggle-btn active" data-quality="best">Best</button>
+            <button type="button" class="toggle-btn" data-quality="1080">1080p</button>
+            <button type="button" class="toggle-btn" data-quality="720">720p</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="actions">
+        <button type="button" id="downloadAudioBtn" class="btn btn-audio" disabled>
+          <span class="icon">🎵</span> Download MP3
+        </button>
+        <button type="button" id="downloadVideoBtn" class="btn btn-video" disabled>
+          <span class="icon">🎬</span> Download MP4
+        </button>
+      </div>
+
+      <!-- Progress -->
+      <div id="progressSection" class="progress-section hidden">
+        <div class="progress-header">
+          <span id="progressLabel">Downloading...</span>
+          <span id="progressPercent">0%</span>
+        </div>
+        <div class="progress-track">
+          <div id="progressFill" class="progress-fill"></div>
+        </div>
+        <div class="progress-footer">
+          <span id="progressDetails">-- MB • -- MB/s</span>
+          <button type="button" id="cancelBtn" class="cancel-link">Cancel</button>
+        </div>
+      </div>
+
+      <!-- Result -->
+      <div id="resultSection" class="result-section hidden">
+        <div class="result-icon">✅</div>
+        <div class="result-text">
+          <p>Finished Successfully</p>
+          <small id="resultFilePath"></small>
+        </div>
+        <div class="result-actions">
+          <button type="button" id="openFolderBtn" class="btn-outline">Open Folder</button>
+          <button type="button" id="trimVideoBtn" class="btn-outline btn-trim hidden">✂️ Trim</button>
         </div>
       </div>
     </div>
 
-    <!-- Actions -->
-    <div class="actions">
-      <button type="button" id="downloadAudioBtn" class="btn btn-audio" disabled>
-        <span class="icon">🎵</span> Download MP3
-      </button>
-      <button type="button" id="downloadVideoBtn" class="btn btn-video" disabled>
-        <span class="icon">🎬</span> Download MP4
-      </button>
-    </div>
+    <!-- SETTINGS SECTION -->
+    <div id="settingsSection" class="settings-section hidden">
+      <h2>Settings</h2>
+      
+      <div class="setting-item">
+        <label>Download Location</label>
+        <div class="path-input-group">
+          <input type="text" id="downloadPathInput" class="path-input" placeholder="Default yt-dlp folder" />
+          <button type="button" id="browseFolderBtn" class="btn-outline btn-small">Browse</button>
+          <button type="button" id="resetFolderBtn" class="btn-outline btn-small" title="Reset to Default">↺</button>
+        </div>
+        <small class="setting-hint">Where downloaded files will be saved.</small>
+      </div>
 
-    <!-- Progress -->
-    <div id="progressSection" class="progress-section hidden">
-      <div class="progress-header">
-        <span id="progressLabel">Downloading...</span>
-        <span id="progressPercent">0%</span>
+      <div class="setting-item">
+        <label>Trim Engine</label>
+        <div class="settings-actions">
+          <button type="button" id="importFileBtn" class="btn-outline">
+            <span class="icon">📁</span> Import Local File to Trim
+          </button>
+        </div>
+        <small class="setting-hint">Manually open the Premium Trimmer.</small>
       </div>
-      <div class="progress-track">
-        <div id="progressFill" class="progress-fill"></div>
-      </div>
-      <div class="progress-footer">
-        <span id="progressDetails">-- MB • -- MB/s</span>
-        <button type="button" id="cancelBtn" class="cancel-link">Cancel</button>
-      </div>
-    </div>
-
-    <!-- Result -->
-    <div id="resultSection" class="result-section hidden">
-      <div class="result-icon">✅</div>
-      <div class="result-text">
-        <p>Finished Successfully</p>
-        <small id="resultFilePath"></small>
-      </div>
-      <button type="button" id="openFolderBtn" class="btn-outline">Open Folder</button>
     </div>
   </div>
 

@@ -10,6 +10,8 @@ YouDL is a powerful, minimalist browser extension that serves as a **GUI for [yt
 - **Dynamic Previews**: Automatically fetches video thumbnails, titles, and duration.
 - **Quality Selection**: Choose between high-bitrate MP3 or specific Video resolutions (1080p, 720p).
 - **Premium UI**: Modern Glassmorphism design with smooth animations.
+- **Advanced Trimmer**: Lossless trimming (`-c copy`) with a premium interface, interactive waveform, vinyl visualizer for audio, editable timecodes, and magnetic snapping.
+- **Custom Settings**: Change your download directory or import local media files for trimming via the native Windows file picker.
 - **Native Integration**: Works directly from your browser toolbar.
 - **Fast & Reliable**: Leverages the power of `yt-dlp` backend.
 

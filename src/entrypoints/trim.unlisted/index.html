@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YouDL — Trim Video</title>
+</head>
+<body>
+  <div class="trim-app">
+    <!-- Header -->
+    <header class="trim-header">
+      <div class="header-left">
+        <img src="/icon/128.png" alt="Logo" class="header-logo" />
+        <div>
+          <h1>Trim Video</h1>
+          <p class="file-name" id="fileName">Loading...</p>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="kbd-hint">
+          <span class="kbd">Space</span> Play
+          <span class="kbd">←→</span> ±5s
+          <span class="kbd">-+</span> Frame
+          <span class="kbd">[ ]</span> In/Out
+          <span class="kbd">Scroll</span> Zoom
+          <span class="kbd">F</span> Fit
+        </div>
+      </div>
+    </header>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+      <div class="loading-spinner"></div>
+      <p>Loading video from local server...</p>
+    </div>
+
+    <!-- Video Player -->
+    <div class="player-wrapper" id="playerWrapper">
+      <video id="videoPlayer" class="video-player" preload="auto"></video>
+      <div class="audio-visualizer hidden" id="audioVisualizer">
+        <div class="vinyl-record">
+          <div class="vinyl-center"></div>
+        </div>
+      </div>
+      <div class="player-overlay" id="playerOverlay">
+        <div class="play-indicator" id="playIndicator">▶</div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="timeline-section">
+      <div class="timeline-header">
+        <div class="time-display">
+          <span id="currentTime">0:00.000</span>
+          <span class="time-separator">/</span>
+          <span id="totalTime">0:00.000</span>
+        </div>
+        <div class="zoom-indicator hidden" id="zoomIndicator">
+          <span class="zoom-icon">🔍</span>
+          <span class="zoom-level" id="zoomLevel">1.0x</span>
+          <button type="button" class="zoom-btn" id="zoomFitBtn" title="Fit to selection (F)">Fit</button>
+          <button type="button" class="zoom-btn" id="zoomResetBtn" title="Reset zoom (0)">Reset</button>
+        </div>
+      </div>
+
+      <div class="timeline-container" id="timelineContainer">
+        <!-- Visuals (Waveform + Track) that need clipping when zoomed -->
+        <div class="timeline-visuals">
+          <!-- Progress bar -->
+          <div class="timeline-track" id="timelineTrack">
+            <div class="timeline-played" id="timelinePlayed"></div>
+          </div>
+
+          <!-- Waveform Background -->
+          <img class="timeline-waveform hidden" id="timelineWaveform" alt="Waveform" />
+        </div>
+
+        <!-- Trim region highlight -->
+        <div class="trim-region" id="trimRegion"></div>
+
+        <!-- Playhead -->
+        <div class="playhead" id="playhead"></div>
+
+        <!-- In/Out handles -->
+        <div class="trim-handle trim-handle-in" id="handleIn" title="In Point [">
+          <div class="handle-label">IN</div>
+        </div>
+        <div class="trim-handle trim-handle-out" id="handleOut" title="Out Point ]">
+          <div class="handle-label">OUT</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls-bar">
+      <div class="controls-left">
+        <button type="button" class="ctrl-btn" id="prevFrameBtn" title="Previous Frame (-)">
+          <span class="ctrl-icon">⏮</span>
+          <span class="ctrl-label">Frame</span>
+        </button>
+        <button type="button" class="ctrl-btn" id="skipBackBtn" title="Back 5s (←)">
+          <span class="ctrl-icon">⏪</span>
+          <span class="ctrl-label">5s</span>
+        </button>
+        <button type="button" class="ctrl-btn ctrl-btn-play" id="playPauseBtn" title="Play/Pause (Space)">
+          <span class="ctrl-icon" id="playPauseIcon">▶</span>
+        </button>
+        <button type="button" class="ctrl-btn" id="skipForwardBtn" title="Forward 5s (→)">
+          <span class="ctrl-icon">⏩</span>
+          <span class="ctrl-label">5s</span>
+        </button>
+        <button type="button" class="ctrl-btn" id="nextFrameBtn" title="Next Frame (+)">
+          <span class="ctrl-icon">⏭</span>
+          <span class="ctrl-label">Frame</span>
+        </button>
+      </div>
+
+      <div class="controls-center">
+        <button type="button" class="ctrl-btn magnet-btn active" id="magnetToggleBtn" title="Toggle Magnet Snap (S)">
+          <span class="ctrl-icon">🧲</span>
+        </button>
+        <button type="button" class="ctrl-btn ctrl-btn-accent" id="setInBtn" title="Set In Point ([)">
+          <span class="ctrl-icon">◂</span> Set In
+        </button>
+        <div class="trim-info" id="trimInfo">
+          <span class="trim-label">Selection</span>
+          <div class="trim-inputs">
+            <input type="text" id="inPointInput" class="timecode-input" value="0:00.000" />
+            <span class="trim-arrow">→</span>
+            <input type="text" id="outPointInput" class="timecode-input" value="0:00.000" />
+          </div>
+          <span class="trim-duration" id="trimDuration">0.0s</span>
+        </div>
+        <button type="button" class="ctrl-btn ctrl-btn-accent" id="setOutBtn" title="Set Out Point (])">
+          Set Out <span class="ctrl-icon">▸</span>
+        </button>
+      </div>
+
+      <div class="controls-right">
+        <button type="button" class="ctrl-btn" id="goToInBtn" title="Go to In Point">
+          ▶ In
+        </button>
+        <button type="button" class="ctrl-btn" id="goToOutBtn" title="Go to Out Point">
+          ▶ Out
+        </button>
+      </div>
+    </div>
+
+    <!-- Export Bar -->
+    <div class="export-bar">
+      <div class="export-info">
+        <span class="export-label">Output:</span>
+        <span class="export-filename" id="outputFileName">_trimmed.mp4</span>
+      </div>
+      <div class="export-actions">
+        <button type="button" class="export-btn-cancel" id="cancelTrimBtn">Close</button>
+        <button type="button" class="export-btn" id="exportBtn">
+          <span class="export-icon">✂️</span> Export Trim
+        </button>
+      </div>
+    </div>
+
+    <!-- Export Progress Overlay -->
+    <div id="exportOverlay" class="export-overlay hidden">
+      <div class="export-modal">
+        <div class="export-modal-icon">✂️</div>
+        <h3>Trimming Video...</h3>
+        <div class="export-progress-track">
+          <div class="export-progress-fill" id="exportProgressFill"></div>
+        </div>
+        <p class="export-percent" id="exportPercent">0%</p>
+      </div>
+    </div>
+
+    <!-- Export Success Overlay -->
+    <div id="successOverlay" class="export-overlay hidden">
+      <div class="export-modal export-modal-success">
+        <div class="export-modal-icon">✅</div>
+        <h3>Trim Complete!</h3>
+        <p class="success-path" id="successPath"></p>
+        <div class="success-actions">
+          <button type="button" class="export-btn-cancel" id="closeSuccessBtn">Close</button>
+          <button type="button" class="export-btn" id="openTrimmedBtn">Open Folder</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./index.ts"></script>
+</body>
+</html>

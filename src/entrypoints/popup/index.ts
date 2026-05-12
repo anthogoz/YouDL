@@ -27,11 +27,22 @@ const cancelBtn = document.getElementById('cancelBtn') as HTMLButtonElement;
 const resultSection = document.getElementById('resultSection') as HTMLDivElement;
 const resultFilePath = document.getElementById('resultFilePath') as HTMLElement;
 const openFolderBtn = document.getElementById('openFolderBtn') as HTMLButtonElement;
+const trimVideoBtn = document.getElementById('trimVideoBtn') as HTMLButtonElement;
+
+// Settings Elements
+const settingsToggle = document.getElementById('settingsToggle') as HTMLButtonElement;
+const homeSection = document.getElementById('homeSection') as HTMLDivElement;
+const settingsSection = document.getElementById('settingsSection') as HTMLDivElement;
+const downloadPathInput = document.getElementById('downloadPathInput') as HTMLInputElement;
+const browseFolderBtn = document.getElementById('browseFolderBtn') as HTMLButtonElement;
+const resetFolderBtn = document.getElementById('resetFolderBtn') as HTMLButtonElement;
+const importFileBtn = document.getElementById('importFileBtn') as HTMLButtonElement;
 
 // ── State ──
 let currentUrl = '';
 let selectedAudioQuality = 'best';
 let selectedVideoQuality = 'best';
+let customDownloadPath = '';
 
 // ── Initialization ──
 browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
@@ -48,16 +59,65 @@ browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
     setStatus('error', 'Navigate to a media site');
   }
 
-  // Restore state from background
-  browser.runtime.sendMessage({ type: 'get_state' }).then((state: DownloadState) => {
-    renderState(state);
-  });
+});
+
+// Restore state from background
+browser.runtime.sendMessage({ type: 'get_state' }).then((state: DownloadState) => {
+  renderState(state);
+});
+
+// Load settings
+browser.storage.local.get(['customDownloadPath']).then((res) => {
+  if (res.customDownloadPath) {
+    customDownloadPath = res.customDownloadPath;
+    downloadPathInput.value = customDownloadPath;
+  }
+});
+
+// ── Settings Navigation ──
+settingsToggle.addEventListener('click', () => {
+  const isSettingsOpen = !settingsSection.classList.contains('hidden');
+  if (isSettingsOpen) {
+    settingsSection.classList.add('hidden');
+    homeSection.classList.remove('hidden');
+    settingsToggle.style.opacity = '0.5';
+  } else {
+    homeSection.classList.add('hidden');
+    settingsSection.classList.remove('hidden');
+    settingsToggle.style.opacity = '1';
+  }
+});
+
+// ── Settings Actions ──
+browseFolderBtn.addEventListener('click', () => {
+  browser.runtime.sendMessage({ type: 'pick_folder' });
+});
+
+importFileBtn.addEventListener('click', () => {
+  browser.runtime.sendMessage({ type: 'pick_file' });
+});
+
+downloadPathInput.addEventListener('change', () => {
+  customDownloadPath = downloadPathInput.value;
+  browser.storage.local.set({ customDownloadPath });
+});
+
+resetFolderBtn.addEventListener('click', () => {
+  customDownloadPath = '';
+  downloadPathInput.value = '';
+  browser.storage.local.remove('customDownloadPath');
 });
 
 // ── Listen for updates ──
 browser.runtime.onMessage.addListener((message: any) => {
   if (message.type === 'state_update') {
     renderState(message.state);
+  } else if (message.type === 'pick_folder_result') {
+    customDownloadPath = message.path;
+    downloadPathInput.value = customDownloadPath;
+    browser.storage.local.set({ customDownloadPath });
+  } else if (message.type === 'pick_file_result') {
+    browser.tabs.create({ url: browser.runtime.getURL(`trim.html?file=${encodeURIComponent(message.path)}`) });
   }
 });
 
@@ -117,6 +177,14 @@ function renderState(state: DownloadState): void {
     resultSection.classList.remove('hidden');
     resultFilePath.textContent = state.file || '';
     openFolderBtn.dataset.path = state.file;
+
+    // Show trim button for both audio and video downloads with a known file path
+    if (state.filepath) {
+      trimVideoBtn.classList.remove('hidden');
+      trimVideoBtn.dataset.path = state.filepath;
+    } else {
+      trimVideoBtn.classList.add('hidden');
+    }
   } else if (state.status === 'error') {
     setStatus('error', state.errorMessage || 'Error occurred');
     downloadAudioBtn.disabled = false;
@@ -155,6 +223,7 @@ downloadAudioBtn.addEventListener('click', () => {
     url: currentUrl,
     format: 'audio',
     quality: selectedAudioQuality,
+    customPath: customDownloadPath || undefined,
   });
 });
 
@@ -164,6 +233,7 @@ downloadVideoBtn.addEventListener('click', () => {
     url: currentUrl,
     format: 'video',
     quality: selectedVideoQuality,
+    customPath: customDownloadPath || undefined,
   });
 });
 
@@ -174,4 +244,13 @@ cancelBtn.addEventListener('click', () => {
 openFolderBtn.addEventListener('click', () => {
   const path = openFolderBtn.dataset.path;
   if (path) browser.runtime.sendMessage({ type: 'open_folder', path });
+});
+
+trimVideoBtn.addEventListener('click', () => {
+  const path = trimVideoBtn.dataset.path;
+  if (path) {
+    // Open trim page in a new tab, passing the file path
+    const trimUrl = browser.runtime.getURL(`/trim.html?file=${encodeURIComponent(path)}`);
+    browser.tabs.create({ url: trimUrl });
+  }
 });

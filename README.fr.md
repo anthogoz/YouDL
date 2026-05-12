@@ -10,6 +10,8 @@ YouDL est une extension navigateur minimaliste et puissante qui sert d'**interfa
 - **Aperçu dynamique** : Récupère automatiquement les miniatures, titres et durées.
 - **Sélection de qualité** : Choisissez entre MP3 haute qualité ou résolutions vidéo (1080p, 720p).
 - **Interface premium** : Design Glassmorphism moderne avec des animations fluides.
+- **Trimmer Avancé** : Découpage sans perte (`-c copy`) avec interface pro, waveform interactive, visualiseur vinyle pour l'audio, timecodes éditables et aimant magnétique.
+- **Paramètres personnalisés** : Modifiez votre dossier de téléchargement ou importez des fichiers multimédias locaux pour les découper via l'explorateur Windows natif.
 - **Intégration native** : Fonctionne directement depuis la barre d'outils du navigateur.
 - **Rapide et fiable** : Exploite la puissance de `yt-dlp` en backend.
 

@@ -5,6 +5,7 @@ const HOST_NAME = 'com.typebeat.downloader';
 
 let nativePort: any = null;
 
+
 const downloadState: DownloadState = {
   status: 'idle',
   percent: 0,
@@ -15,6 +16,7 @@ const downloadState: DownloadState = {
   duration: '',
   uploader: '',
   file: '',
+  filepath: '',
   errorMessage: '',
   format: 'audio',
   quality: 'best',
@@ -23,7 +25,7 @@ const downloadState: DownloadState = {
 export default defineBackground(() => {
   // Listen for connections from popup
   browser.runtime.onMessage.addListener(
-    (message: any, _sender: any, sendResponse: (response?: any) => void) => {
+    (message: any, sender: any, sendResponse: (response?: any) => void) => {
       if (message.type === 'get_state') {
         sendResponse(downloadState);
         return true;
@@ -36,7 +38,7 @@ export default defineBackground(() => {
       }
 
       if (message.type === 'start_download') {
-        startDownload(message.url, message.format, message.quality);
+        startDownload(message.url, message.format, message.quality, message.customPath);
         sendResponse({ success: true });
         return true;
       }
@@ -64,6 +66,52 @@ export default defineBackground(() => {
         return true;
       }
 
+      // ── Trim Feature Messages ──
+
+      if (message.type === 'serve_file') {
+        ensureNativePort().postMessage({ action: 'serve_file', path: message.filePath });
+        sendResponse({ success: true });
+        return true;
+      }
+
+      if (message.type === 'stop_server') {
+        ensureNativePort().postMessage({ action: 'stop_server' });
+        sendResponse({ success: true });
+        return true;
+      }
+
+      if (message.type === 'trim_video') {
+        ensureNativePort().postMessage({
+          action: 'trim',
+          inputPath: message.inputPath,
+          startTime: message.startTime,
+          endTime: message.endTime,
+        });
+        sendResponse({ success: true });
+        return true;
+      }
+
+      if (message.type === 'get_waveform') {
+        ensureNativePort().postMessage({
+          action: 'get_waveform',
+          filePath: message.filePath,
+        });
+        sendResponse({ success: true });
+        return true;
+      }
+
+      if (message.type === 'pick_folder') {
+        ensureNativePort().postMessage({ action: 'pick_folder' });
+        sendResponse({ success: true });
+        return true;
+      }
+
+      if (message.type === 'pick_file') {
+        ensureNativePort().postMessage({ action: 'pick_file' });
+        sendResponse({ success: true });
+        return true;
+      }
+
       return false;
     },
   );
@@ -73,6 +121,10 @@ function broadcastState(): void {
   browser.runtime
     .sendMessage({ type: 'state_update', state: downloadState })
     .catch(() => {});
+}
+
+function broadcastToExtension(message: any): void {
+  browser.runtime.sendMessage(message).catch(() => {});
 }
 
 function ensureNativePort(): any {
@@ -114,11 +166,30 @@ function handleNativeMessage(response: NativeMessage): void {
     downloadState.status = 'success';
     downloadState.title = response.title || downloadState.title;
     downloadState.file = response.file;
+    downloadState.filepath = response.filepath || '';
     broadcastState();
   } else if (response.status === 'error') {
     downloadState.status = 'error';
     downloadState.errorMessage = response.detail || 'Unknown error';
     broadcastState();
+  }
+  // ── Trim-specific native messages ──
+  else if (response.status === 'serve_ready') {
+    broadcastToExtension({ type: 'serve_file_ready', url: response.url });
+  } else if (response.status === 'trim_progress') {
+    broadcastToExtension({ type: 'trim_progress', percent: response.percent });
+  } else if (response.status === 'trim_ok') {
+    broadcastToExtension({ type: 'trim_complete', outputPath: response.file });
+  } else if (response.status === 'trim_error') {
+    broadcastToExtension({ type: 'trim_error', detail: response.detail });
+  } else if (response.status === 'waveform_ready') {
+    broadcastToExtension({ type: 'waveform_ready', url: response.url });
+  } else if (response.status === 'waveform_error') {
+    broadcastToExtension({ type: 'waveform_error', detail: response.detail });
+  } else if (response.status === 'pick_folder_result') {
+    broadcastToExtension({ type: 'pick_folder_result', path: response.path });
+  } else if (response.status === 'pick_file_result') {
+    broadcastToExtension({ type: 'pick_file_result', path: response.path });
   }
 }
 
@@ -137,7 +208,7 @@ function fetchInfo(url: string): void {
   ensureNativePort().postMessage({ action: 'get_info', url });
 }
 
-function startDownload(url: string, format: string, quality: string): void {
+function startDownload(url: string, format: string, quality: string, customPath?: string): void {
   if (downloadState.status === 'downloading') return;
 
   downloadState.status = 'downloading';
@@ -153,5 +224,6 @@ function startDownload(url: string, format: string, quality: string): void {
     url,
     format,
     quality,
+    customPath,
   });
 }
