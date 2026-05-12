@@ -237,11 +237,23 @@ def trim_video(input_path, start_time, end_time, progress_callback):
         "-ss", f"{start_time:.3f}",
         "-to", f"{end_time:.3f}",
         "-i", input_path,
-        "-c", "copy",
+    ]
+
+    ext_lower = ext.lower()
+    if ext_lower in [".mp4", ".mkv", ".mov"]:
+        # Re-encode both video and audio for frame accuracy and perfect sync
+        cmd.extend(["-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-c:a", "aac", "-b:a", "320k"])
+    elif ext_lower in [".webm"]:
+        cmd.extend(["-c:v", "libvpx-vp9", "-cpu-used", "4", "-c:a", "libopus", "-b:a", "192k"])
+    else:
+        # For audio formats like mp3, m4a, wav, or unknown, copy streams.
+        cmd.extend(["-c", "copy"])
+
+    cmd.extend([
         "-avoid_negative_ts", "make_zero",
         "-progress", "pipe:1",
         output_path,
-    ]
+    ])
 
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
