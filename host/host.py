@@ -639,6 +639,7 @@ def download_media(url, format_type, progress_callback, quality="best", custom_p
     env["PYTHONIOENCODING"] = "utf-8"
 
     last_file = None
+    error_lines = []
 
     process = subprocess.Popen(
         cmd,
@@ -657,6 +658,9 @@ def download_media(url, format_type, progress_callback, quality="best", custom_p
 
         # Strip ANSI escape codes
         clean_line = re.sub(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', '', line)
+
+        if "ERROR:" in clean_line or "error" in clean_line.lower():
+            error_lines.append(clean_line)
 
         percent_match = re.search(r'\[download\]\s+(?P<percent>[0-9.]+)%', clean_line)
         if percent_match:
@@ -709,7 +713,8 @@ def download_media(url, format_type, progress_callback, quality="best", custom_p
     return_code = process.wait()
 
     if return_code != 0:
-        raise Exception(f"yt-dlp failed (code {return_code}). Check if FFmpeg is correctly installed if you are converting to MP3.")
+        error_detail = " | ".join(error_lines[-2:]) if error_lines else "Check if FFmpeg is correctly installed if you are converting to MP3."
+        raise Exception(f"yt-dlp failed (code {return_code}): {error_detail}")
 
     if last_file and not os.path.isabs(last_file):
         last_file = os.path.join(target_dir, last_file)
