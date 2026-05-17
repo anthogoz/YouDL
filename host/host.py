@@ -14,6 +14,7 @@ import re
 import threading
 from pathlib import Path
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+import urllib.request
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 import tkinter as tk
 from tkinter import filedialog
@@ -477,7 +478,83 @@ def generate_waveform(input_path):
     return output_path
 
 
-def download_media(url, format_type, progress_callback, quality="best", custom_path=None):
+def normalize_audio(input_path, progress_callback):
+    """
+    Normalize audio volume using FFmpeg's loudnorm filter (EBU R128).
+    Takes a single pass approach for simplicity and speed.
+    """
+    input_path = str(Path(input_path).resolve())
+    base_name, ext = os.path.splitext(input_path)
+    output_path = f"{base_name}_normalized{ext}"
+
+    # Get duration for progress tracking
+    duration = get_media_duration(input_path)
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", input_path,
+        "-af", "loudnorm=I=-16:LRA=11:TP=-1.5",
+        "-progress", "pipe:1",
+        output_path,
+    ]
+
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        encoding="utf-8",
+        env=env,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+
+    for line in iter(process.stdout.readline, ''):
+        line = line.strip()
+        if not line:
+            continue
+
+        out_time_s = None
+        if line.startswith("out_time_us=") or line.startswith("out_time_ms="):
+            try:
+                raw_val = int(line.split("=")[1])
+                out_time_s = raw_val / 1_000_000
+            except (ValueError, IndexError):
+                pass
+        elif line.startswith("out_time="):
+            try:
+                time_str = line.split("=")[1].strip()
+                parts = time_str.split(":")
+                if len(parts) == 3:
+                    h, m, s = float(parts[0]), float(parts[1]), float(parts[2])
+                    out_time_s = h * 3600 + m * 60 + s
+            except (ValueError, IndexError):
+                pass
+
+        if out_time_s is not None and duration > 0:
+            percent = min(100, (out_time_s / duration) * 100)
+            try:
+                progress_callback({
+                    "status": "normalize_progress",
+                    "percent": round(percent, 1)
+                })
+            except ConnectionError:
+                process.terminate()
+                raise
+
+    process.stdout.close()
+    return_code = process.wait()
+
+    if return_code != 0:
+        raise Exception(f"FFmpeg normalization failed (code {return_code})")
+
+    return output_path
+
+
+def download_media(url, format_type, progress_callback, quality="best", custom_path=None, download_subtitles=False):
     """
     Download media from a URL using yt-dlp.
     format_type can be 'audio' or 'video'.
@@ -513,8 +590,17 @@ def download_media(url, format_type, progress_callback, quality="best", custom_p
             "--embed-thumbnail",
             "--output", output_template,
             "--no-simulate",
-            url,
         ]
+        
+        if download_subtitles:
+            cmd.extend([
+                "--write-subs",
+                "--write-auto-subs",
+                "--sub-langs", "fr,en",
+                "--convert-subs", "srt"
+            ])
+            
+        cmd.append(url)
     else:  # video
         target_dir = downloads_dir / "Video"
         os.makedirs(target_dir, exist_ok=True)
@@ -537,8 +623,17 @@ def download_media(url, format_type, progress_callback, quality="best", custom_p
             "--embed-thumbnail",
             "--output", output_template,
             "--no-simulate",
-            url,
         ]
+        
+        if download_subtitles:
+            cmd.extend([
+                "--write-subs",
+                "--write-auto-subs",
+                "--sub-langs", "fr,en",
+                "--convert-subs", "srt"
+            ])
+            
+        cmd.append(url)
 
     env = os.environ.copy()
     env["PYTHONIOENCODING"] = "utf-8"
@@ -670,12 +765,16 @@ def main():
                 first_line = result.stdout.splitlines()[0]
                 info = json.loads(first_line)
                 
+                # Check for playlist info
+                playlist_count = info.get("playlist_count") or info.get("n_entries")
+                
                 send_message({
                     "status": "info_result",
                     "title": info.get("title", "Unknown Title"),
                     "thumbnail": info.get("thumbnail", ""),
                     "duration": info.get("duration_string", ""),
                     "uploader": info.get("uploader", ""),
+                    "playlistCount": playlist_count,
                 })
             except Exception:
                 # Fallback to generic info so buttons stay active
@@ -692,6 +791,7 @@ def main():
             format_type = message.get("format", "audio")
             quality = message.get("quality", "best") # 'best', '1080', '720' etc.
             custom_path = message.get("customPath", None)
+            download_subtitles = message.get("downloadSubtitles", False)
             
             if not url:
                 send_message({"status": "error", "detail": "No URL provided"})
@@ -702,7 +802,10 @@ def main():
 
             try:
                 # Pass quality info to download_media
-                target_dir, last_file = download_media(url, format_type, send_message, quality=quality, custom_path=custom_path)
+                target_dir, last_file = download_media(
+                    url, format_type, send_message, 
+                    quality=quality, custom_path=custom_path, download_subtitles=download_subtitles
+                )
                 send_message({
                     "status": "ok",
                     "title": "Download finished",
@@ -886,6 +989,71 @@ def main():
                     send_message({"status": "convert_error", "detail": str(e)})
                 except ConnectionError:
                     break
+        elif action == "save_thumbnail":
+            url = message.get("url", "")
+            title = message.get("title", "thumbnail")
+            custom_path = message.get("customPath", None)
+            
+            if not url or not is_safe_url(url):
+                send_message({"status": "error", "detail": "Invalid or missing URL"})
+                continue
+            
+            try:
+                # Determine save directory
+                if custom_path and os.path.exists(custom_path):
+                    target_dir = Path(custom_path)
+                else:
+                    target_dir = DOWNLOADS_DIR / "Thumbnails"
+                
+                os.makedirs(target_dir, exist_ok=True)
+                
+                # Clean title for filename
+                safe_title = re.sub(r'[\\/*?:"<>|]', "", title).strip()
+                if not safe_title:
+                    safe_title = "cover"
+                    
+                output_path = target_dir / f"{safe_title}.jpg"
+                
+                # Add headers to avoid 403 Forbidden on some CDNs
+                req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                with urllib.request.urlopen(req) as response, open(output_path, 'wb') as out_file:
+                    out_file.write(response.read())
+                    
+                send_message({
+                    "status": "save_thumb_ok",
+                    "title": "Thumbnail Saved",
+                    "file": str(target_dir),
+                    "filepath": str(output_path)
+                })
+            except Exception as e:
+                try:
+                    send_message({"status": "save_thumb_error", "detail": f"Failed to save thumbnail: {str(e)}"})
+                except ConnectionError:
+                    break
+        elif action == "normalize_audio":
+            input_path = message.get("inputPath", "")
+
+            if not input_path:
+                send_message({"status": "normalize_error", "detail": "No input file provided"})
+                continue
+            if not is_safe_path(input_path):
+                send_message({"status": "normalize_error", "detail": "File not found"})
+                continue
+
+            try:
+                output_path = normalize_audio(input_path, send_message)
+                send_message({
+                    "status": "normalize_ok",
+                    "file": output_path
+                })
+            except ConnectionError:
+                break
+            except Exception as e:
+                try:
+                    send_message({"status": "normalize_error", "detail": str(e)})
+                except ConnectionError:
+                    break
+
 
         else:
             send_message({"status": "error", "detail": f"Unknown action: {action}"})

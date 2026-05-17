@@ -8,12 +8,14 @@ const thumbPlaceholder = document.getElementById('thumbPlaceholder') as HTMLDivE
 const videoTitle = document.getElementById('videoTitle') as HTMLParagraphElement;
 const videoUploader = document.getElementById('videoUploader') as HTMLParagraphElement;
 const durationBadge = document.getElementById('durationBadge') as HTMLDivElement;
+const playlistBadge = document.getElementById('playlistBadge') as HTMLSpanElement;
 
 const statusDot = document.getElementById('statusDot') as HTMLDivElement;
 const statusText = document.getElementById('statusText') as HTMLSpanElement;
 
 const downloadAudioBtn = document.getElementById('downloadAudioBtn') as HTMLButtonElement;
 const downloadVideoBtn = document.getElementById('downloadVideoBtn') as HTMLButtonElement;
+const quickSaveThumbBtn = document.getElementById('quickSaveThumbBtn') as HTMLButtonElement;
 
 const audioQualityGroup = document.getElementById('audioQualityGroup') as HTMLDivElement;
 const videoQualityGroup = document.getElementById('videoQualityGroup') as HTMLDivElement;
@@ -27,6 +29,7 @@ const cancelBtn = document.getElementById('cancelBtn') as HTMLButtonElement;
 const resultSection = document.getElementById('resultSection') as HTMLDivElement;
 const resultFilePath = document.getElementById('resultFilePath') as HTMLElement;
 const openFolderBtn = document.getElementById('openFolderBtn') as HTMLButtonElement;
+const saveThumbBtn = document.getElementById('saveThumbBtn') as HTMLButtonElement;
 const trimVideoBtn = document.getElementById('trimVideoBtn') as HTMLButtonElement;
 
 // Settings Elements
@@ -38,6 +41,8 @@ const browseFolderBtn = document.getElementById('browseFolderBtn') as HTMLButton
 const resetFolderBtn = document.getElementById('resetFolderBtn') as HTMLButtonElement;
 const importFileBtn = document.getElementById('importFileBtn') as HTMLButtonElement;
 const twitterToggle = document.getElementById('twitterToggle') as HTMLInputElement;
+const subtitlesToggle = document.getElementById('subtitlesToggle') as HTMLInputElement;
+const normalizeToggle = document.getElementById('normalizeToggle') as HTMLInputElement;
 const convertTwitterBtn = document.getElementById('convertTwitterBtn') as HTMLButtonElement;
 const convertProgressSection = document.getElementById('convertProgressSection') as HTMLDivElement;
 const convertProgressPercent = document.getElementById('convertProgressPercent') as HTMLSpanElement;
@@ -48,12 +53,17 @@ const convertOpenFolderBtn = document.getElementById('convertOpenFolderBtn') as 
 const convertErrorSection = document.getElementById('convertErrorSection') as HTMLDivElement;
 const convertErrorText = document.getElementById('convertErrorText') as HTMLSpanElement;
 
+const historyList = document.getElementById('historyList') as HTMLDivElement;
+const clearHistoryBtn = document.getElementById('clearHistoryBtn') as HTMLButtonElement;
+
 // ── State ──
 let currentUrl = '';
 let selectedAudioQuality = 'best';
 let selectedVideoQuality = 'best';
 let customDownloadPath = '';
 let alwaysConvertTwitter = false;
+let alwaysDownloadSubtitles = false;
+let alwaysNormalizeAudio = false;
 
 // ── Initialization ──
 browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
@@ -78,7 +88,7 @@ browser.runtime.sendMessage({ type: 'get_state' }).then((state: DownloadState) =
 });
 
 // Load settings
-browser.storage.local.get(['customDownloadPath', 'alwaysConvertTwitter']).then((res) => {
+browser.storage.local.get(['customDownloadPath', 'alwaysConvertTwitter', 'alwaysDownloadSubtitles', 'alwaysNormalizeAudio']).then((res) => {
   if (res.customDownloadPath) {
     customDownloadPath = res.customDownloadPath;
     downloadPathInput.value = customDownloadPath;
@@ -87,12 +97,83 @@ browser.storage.local.get(['customDownloadPath', 'alwaysConvertTwitter']).then((
     alwaysConvertTwitter = true;
     twitterToggle.checked = true;
   }
+  if (res.alwaysDownloadSubtitles) {
+    alwaysDownloadSubtitles = true;
+    subtitlesToggle.checked = true;
+  }
+  if (res.alwaysNormalizeAudio) {
+    alwaysNormalizeAudio = true;
+    normalizeToggle.checked = true;
+  }
 });
 
 // Twitter/X toggle persistence
 twitterToggle.addEventListener('change', () => {
   alwaysConvertTwitter = twitterToggle.checked;
   browser.storage.local.set({ alwaysConvertTwitter });
+});
+
+// Subtitles toggle persistence
+subtitlesToggle.addEventListener('change', () => {
+  alwaysDownloadSubtitles = subtitlesToggle.checked;
+  browser.storage.local.set({ alwaysDownloadSubtitles });
+});
+
+// Normalize toggle persistence
+normalizeToggle.addEventListener('change', () => {
+  alwaysNormalizeAudio = normalizeToggle.checked;
+  browser.storage.local.set({ alwaysNormalizeAudio });
+});
+
+// ── Download History ──
+function renderHistory() {
+  browser.storage.local.get('downloadHistory').then((res) => {
+    const history = res.downloadHistory || [];
+    if (history.length === 0) {
+      historyList.innerHTML = '<div class="history-empty">No recent downloads</div>';
+      clearHistoryBtn.classList.add('hidden');
+      return;
+    }
+
+    clearHistoryBtn.classList.remove('hidden');
+    historyList.innerHTML = '';
+    
+    history.forEach((item: any) => {
+      const el = document.createElement('div');
+      el.className = 'history-item';
+      
+      const thumb = item.thumbnail || 'icons/icon-48.png';
+      const date = new Date(item.date).toLocaleString(undefined, { 
+        month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' 
+      });
+      
+      el.innerHTML = `
+        <img src="${thumb}" class="history-thumb" alt="" />
+        <div class="history-meta">
+          <span class="history-title" title="${item.title}">${item.title}</span>
+          <span class="history-date">${item.format.toUpperCase()} • ${date}</span>
+        </div>
+        <button type="button" class="history-action open-history-folder" data-path="${item.filepath}" title="Open Folder">
+          📁
+        </button>
+      `;
+      historyList.appendChild(el);
+    });
+
+    // Wire open folder buttons
+    historyList.querySelectorAll('.open-history-folder').forEach((btn) => {
+      btn.addEventListener('click', (e) => {
+        const path = (e.currentTarget as HTMLButtonElement).dataset.path;
+        if (path) browser.runtime.sendMessage({ type: 'open_folder', path });
+      });
+    });
+  });
+}
+
+clearHistoryBtn.addEventListener('click', () => {
+  browser.storage.local.set({ downloadHistory: [] }).then(() => {
+    renderHistory();
+  });
 });
 
 // ── Settings Navigation ──
@@ -106,6 +187,7 @@ settingsToggle.addEventListener('click', () => {
     homeSection.classList.add('hidden');
     settingsSection.classList.remove('hidden');
     settingsToggle.style.opacity = '1';
+    renderHistory(); // Refresh history when opening settings
     settingsSection.scrollIntoView({ behavior: 'smooth' });
   }
 });
@@ -180,6 +262,10 @@ browser.runtime.onMessage.addListener((message: any) => {
     convertResultSection.classList.add('hidden');
     convertErrorSection.classList.remove('hidden');
     convertErrorText.textContent = message.detail || 'Conversion failed';
+  } else if (message.type === 'save_thumb_complete') {
+    setStatus('active', 'Cover saved successfully!');
+  } else if (message.type === 'save_thumb_error') {
+    setStatus('error', message.detail || 'Failed to save cover');
   }
 });
 
@@ -199,14 +285,22 @@ function renderState(state: DownloadState): void {
     videoTitle.textContent = state.title;
     videoUploader.textContent = state.uploader || '';
   }
+  if (state.playlistCount && state.playlistCount > 1) {
+    playlistBadge.textContent = `🎵 ${state.playlistCount}`;
+    playlistBadge.classList.remove('hidden');
+  } else {
+    playlistBadge.classList.add('hidden');
+  }
   if (state.thumbnail) {
     videoThumb.src = state.thumbnail;
     videoThumb.classList.remove('hidden');
     thumbPlaceholder.classList.add('hidden');
+    quickSaveThumbBtn.classList.remove('hidden');
   } else {
     videoThumb.classList.add('hidden');
     thumbPlaceholder.classList.remove('hidden');
     thumbPlaceholder.textContent = '🌐';
+    quickSaveThumbBtn.classList.add('hidden');
   }
 
   if (state.duration) {
@@ -222,17 +316,20 @@ function renderState(state: DownloadState): void {
     downloadAudioBtn.disabled = true;
     downloadVideoBtn.disabled = true;
   } else if (state.status === 'downloading') {
-    setStatus('loading', 'Downloading...');
+    setStatus('active', 'Downloading...');
     downloadAudioBtn.disabled = true;
     downloadVideoBtn.disabled = true;
     progressSection.classList.remove('hidden');
     resultSection.classList.add('hidden');
 
-    progressPercent.textContent = state.text || '0%';
+    progressPercent.textContent = `${state.percent}%`;
     progressFill.style.width = `${state.percent}%`;
-    progressDetails.textContent = state.details || 'Processing...';
+    progressFill.classList.remove('convert-fill');
+    
+    // Details (Size, Speed, ETA)
+    progressDetails.textContent = state.details || '';
   } else if (state.status === 'converting') {
-    setStatus('loading', 'Converting for Twitter/X...');
+    setStatus('active', 'Converting...');
     downloadAudioBtn.disabled = true;
     downloadVideoBtn.disabled = true;
     progressSection.classList.remove('hidden');
@@ -242,6 +339,17 @@ function renderState(state: DownloadState): void {
     progressFill.style.width = `${state.percent}%`;
     progressFill.classList.add('convert-fill');
     progressDetails.textContent = 'Re-encoding to H.264+AAC...';
+  } else if (state.status === 'normalizing') {
+    setStatus('active', 'Normalizing Audio...');
+    downloadAudioBtn.disabled = true;
+    downloadVideoBtn.disabled = true;
+    progressSection.classList.remove('hidden');
+    resultSection.classList.add('hidden');
+
+    progressPercent.textContent = state.text || '0%';
+    progressFill.style.width = `${state.percent}%`;
+    progressFill.classList.add('convert-fill'); // Reuse convert fill style for now
+    progressDetails.textContent = 'Normalizing volume levels...';
   } else if (state.status === 'success') {
     setStatus('active', 'Download finished');
     downloadAudioBtn.disabled = false;
@@ -258,6 +366,13 @@ function renderState(state: DownloadState): void {
       trimVideoBtn.dataset.path = state.filepath;
     } else {
       trimVideoBtn.classList.add('hidden');
+    }
+
+    // Show save thumbnail button if thumbnail exists
+    if (state.thumbnail) {
+      saveThumbBtn.classList.remove('hidden');
+    } else {
+      saveThumbBtn.classList.add('hidden');
     }
   } else if (state.status === 'error') {
     setStatus('error', state.errorMessage || 'Error occurred');
@@ -300,6 +415,8 @@ downloadAudioBtn.addEventListener('click', () => {
     format: 'audio',
     quality: selectedAudioQuality,
     customPath: customDownloadPath || undefined,
+    downloadSubtitles: alwaysDownloadSubtitles,
+    normalizeAudio: alwaysNormalizeAudio,
   });
 });
 
@@ -311,6 +428,8 @@ downloadVideoBtn.addEventListener('click', () => {
     quality: selectedVideoQuality,
     customPath: customDownloadPath || undefined,
     convertForTwitter: alwaysConvertTwitter,
+    downloadSubtitles: alwaysDownloadSubtitles,
+    normalizeAudio: alwaysNormalizeAudio,
   });
 });
 
@@ -329,5 +448,34 @@ trimVideoBtn.addEventListener('click', () => {
     // Open trim page in a new tab, passing the file path
     const trimUrl = browser.runtime.getURL(`/trim.html?file=${encodeURIComponent(path)}`);
     browser.tabs.create({ url: trimUrl });
+  }
+});
+
+saveThumbBtn.addEventListener('click', () => {
+  browser.runtime.sendMessage({
+    type: 'save_thumbnail',
+    url: videoThumb.src, // Reusing the loaded thumbnail URL
+    customPath: customDownloadPath || undefined
+  });
+  
+  // Visual feedback
+  const originalText = saveThumbBtn.innerHTML;
+  saveThumbBtn.innerHTML = '✅ Saved';
+  saveThumbBtn.disabled = true;
+  setTimeout(() => {
+    saveThumbBtn.innerHTML = originalText;
+    saveThumbBtn.disabled = false;
+  }, 2000);
+});
+
+quickSaveThumbBtn.addEventListener('click', (e) => {
+  e.stopPropagation(); // Avoid triggering any preview-card clicks if any
+  if (videoThumb.src) {
+    setStatus('loading', 'Saving cover...');
+    browser.runtime.sendMessage({
+      type: 'save_thumbnail',
+      url: videoThumb.src,
+      customPath: customDownloadPath || undefined
+    });
   }
 });

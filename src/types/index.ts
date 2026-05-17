@@ -1,6 +1,6 @@
 // ── Download State ──
 
-export type DownloadStatus = 'idle' | 'loading_info' | 'downloading' | 'converting' | 'success' | 'error';
+export type DownloadStatus = 'idle' | 'loading_info' | 'downloading' | 'converting' | 'normalizing' | 'success' | 'error';
 
 export type FormatType = 'audio' | 'video';
 
@@ -22,6 +22,16 @@ export interface DownloadState {
   errorMessage: string;
   format: FormatType;
   quality: string;
+  playlistCount?: number;
+}
+
+export interface DownloadHistoryItem {
+  id: string;
+  title: string;
+  date: string;
+  filepath: string;
+  format: FormatType;
+  thumbnail: string;
 }
 
 // ── Native Host Messages ──
@@ -60,6 +70,7 @@ export interface NativeInfoResult {
   thumbnail: string;
   duration: string;
   uploader: string;
+  playlistCount?: number;
 }
 
 export interface NativeServeFile {
@@ -103,15 +114,19 @@ export type NativeMessage =
   | { status: 'pick_file_convert_cancelled' }
   | { status: 'convert_progress'; percent: number }
   | { status: 'convert_ok'; file: string }
-  | { status: 'convert_error'; detail: string };
+  | { status: 'convert_error'; detail: string }
+  | { status: 'normalize_progress'; percent: number }
+  | { status: 'normalize_ok'; file: string }
+  | { status: 'normalize_error'; detail: string };
 
 // ── Extension Messages (popup ↔ background) ──
 
 export type ExtensionMessage =
   | { type: 'get_state' }
   | { type: 'fetch_info'; url: string }
-  | { type: 'start_download'; url: string; format: FormatType; quality: string; customPath?: string; convertForTwitter?: boolean }
+  | { type: 'start_download'; url: string; format: FormatType; quality: string; customPath?: string; convertForTwitter?: boolean; downloadSubtitles?: boolean; normalizeAudio?: boolean }
   | { type: 'cancel_download' }
+  | { type: 'save_thumbnail'; url: string; customPath?: string }
   | { type: 'open_folder'; path: string }
   | { type: 'state_update'; state: DownloadState }
   | { type: 'serve_file'; filePath: string }
@@ -133,4 +148,8 @@ export type ExtensionMessage =
   | { type: 'convert_twitter'; inputPath: string }
   | { type: 'convert_progress'; percent: number }
   | { type: 'convert_complete'; outputPath: string }
-  | { type: 'convert_error'; detail: string };
+  | { type: 'convert_error'; detail: string }
+  | { type: 'normalize_audio'; inputPath: string }
+  | { type: 'normalize_progress'; percent: number }
+  | { type: 'normalize_complete'; outputPath: string }
+  | { type: 'normalize_error'; detail: string };

@@ -5,6 +5,7 @@ const HOST_NAME = 'com.typebeat.downloader';
 
 let nativePort: any = null;
 let pendingTwitterConvert = false;
+let pendingNormalizeAudio = false;
 
 
 const downloadState: DownloadState = {
@@ -39,23 +40,35 @@ export default defineBackground(() => {
       }
 
       if (message.type === 'start_download') {
-        startDownload(message.url, message.format, message.quality, message.customPath, message.convertForTwitter);
+        startDownload(message.url, message.format, message.quality, message.customPath, message.convertForTwitter, message.downloadSubtitles, message.normalizeAudio);
         sendResponse({ success: true });
         return true;
       }
 
       if (message.type === 'cancel_download') {
         pendingTwitterConvert = false;
+        pendingNormalizeAudio = false;
         if (nativePort) {
           nativePort.disconnect();
           nativePort = null;
         }
-        if (downloadState.status === 'downloading' || downloadState.status === 'converting') {
-          const wasConverting = downloadState.status === 'converting';
+        if (downloadState.status === 'downloading' || downloadState.status === 'converting' || downloadState.status === 'normalizing') {
+          const wasConverting = downloadState.status === 'converting' || downloadState.status === 'normalizing';
           downloadState.status = 'error';
-          downloadState.errorMessage = wasConverting ? 'Conversion cancelled' : 'Download cancelled';
+          downloadState.errorMessage = wasConverting ? 'Processing cancelled' : 'Download cancelled';
           broadcastState();
         }
+        sendResponse({ success: true });
+        return true;
+      }
+
+      if (message.type === 'save_thumbnail') {
+        ensureNativePort().postMessage({ 
+          action: 'save_thumbnail', 
+          url: message.url,
+          title: downloadState.title,
+          customPath: message.customPath
+        });
         sendResponse({ success: true });
         return true;
       }
@@ -161,6 +174,7 @@ function handleNativeMessage(response: NativeMessage): void {
     downloadState.thumbnail = response.thumbnail;
     downloadState.duration = response.duration;
     downloadState.uploader = response.uploader;
+    downloadState.playlistCount = response.playlistCount;
     broadcastState();
   } else if (response.status === 'progress') {
     downloadState.status = 'downloading';
@@ -186,7 +200,7 @@ function handleNativeMessage(response: NativeMessage): void {
     downloadState.file = response.file;
     downloadState.filepath = response.filepath || '';
 
-    // Download finished — check if we need to auto-convert for Twitter
+    // Download finished — check if we need to auto-convert for Twitter or normalize audio
     if (pendingTwitterConvert && downloadState.filepath) {
       pendingTwitterConvert = false;
       downloadState.status = 'converting';
@@ -198,15 +212,32 @@ function handleNativeMessage(response: NativeMessage): void {
         action: 'convert_twitter',
         inputPath: downloadState.filepath,
       });
+    } else if (pendingNormalizeAudio && downloadState.filepath && downloadState.format === 'audio') {
+      pendingNormalizeAudio = false;
+      downloadState.status = 'normalizing';
+      downloadState.percent = 0;
+      downloadState.text = '0%';
+      downloadState.details = 'Normalizing volume levels...';
+      broadcastState();
+      ensureNativePort().postMessage({
+        action: 'normalize_audio',
+        inputPath: downloadState.filepath,
+      });
     } else {
       pendingTwitterConvert = false;
+      pendingNormalizeAudio = false;
       downloadState.status = 'success';
+      saveDownloadHistory();
       broadcastState();
     }
   } else if (response.status === 'error') {
     downloadState.status = 'error';
     downloadState.errorMessage = response.detail || 'Unknown error';
     broadcastState();
+  } else if (response.status === 'save_thumb_ok') {
+    broadcastToExtension({ type: 'save_thumb_complete', outputPath: response.filepath });
+  } else if (response.status === 'save_thumb_error') {
+    broadcastToExtension({ type: 'save_thumb_error', detail: response.detail });
   }
   // ── Trim-specific native messages ──
   else if (response.status === 'serve_ready') {
@@ -241,6 +272,7 @@ function handleNativeMessage(response: NativeMessage): void {
     if (downloadState.status === 'converting') {
       downloadState.status = 'success';
       downloadState.filepath = response.file;
+      saveDownloadHistory();
       broadcastState();
     }
     broadcastToExtension({ type: 'convert_complete', outputPath: response.file });
@@ -251,6 +283,27 @@ function handleNativeMessage(response: NativeMessage): void {
       broadcastState();
     }
     broadcastToExtension({ type: 'convert_error', detail: response.detail });
+  } else if (response.status === 'normalize_progress') {
+    if (downloadState.status === 'normalizing') {
+      downloadState.percent = response.percent;
+      downloadState.text = `${response.percent}%`;
+      broadcastState();
+    }
+    broadcastToExtension({ type: 'normalize_progress', percent: response.percent });
+  } else if (response.status === 'normalize_ok') {
+    if (downloadState.status === 'normalizing') {
+      downloadState.status = 'success';
+      downloadState.filepath = response.file;
+      saveDownloadHistory();
+      broadcastState();
+    }
+    broadcastToExtension({ type: 'normalize_complete', outputPath: response.file });
+  } else if (response.status === 'normalize_error') {
+    if (downloadState.status === 'normalizing') {
+      downloadState.status = 'success';
+      broadcastState();
+    }
+    broadcastToExtension({ type: 'normalize_error', detail: response.detail });
   }
 }
 
@@ -265,14 +318,16 @@ function handleNativeDisconnect(): void {
 
 function fetchInfo(url: string): void {
   downloadState.status = 'loading_info';
+  downloadState.playlistCount = undefined;
   broadcastState();
   ensureNativePort().postMessage({ action: 'get_info', url });
 }
 
-function startDownload(url: string, format: string, quality: string, customPath?: string, convertForTwitter?: boolean): void {
-  if (downloadState.status === 'downloading' || downloadState.status === 'converting') return;
+function startDownload(url: string, format: string, quality: string, customPath?: string, convertForTwitter?: boolean, downloadSubtitles?: boolean, normalizeAudio?: boolean): void {
+  if (downloadState.status === 'downloading' || downloadState.status === 'converting' || downloadState.status === 'normalizing') return;
 
   pendingTwitterConvert = format === 'video' && !!convertForTwitter;
+  pendingNormalizeAudio = format === 'audio' && !!normalizeAudio;
 
   downloadState.status = 'downloading';
   downloadState.percent = 0;
@@ -288,5 +343,29 @@ function startDownload(url: string, format: string, quality: string, customPath?
     format,
     quality,
     customPath,
+    downloadSubtitles: !!downloadSubtitles,
+    normalizeAudio: !!normalizeAudio,
+  });
+}
+
+function saveDownloadHistory(): void {
+  browser.storage.local.get('downloadHistory').then((res) => {
+    const history = res.downloadHistory || [];
+    const newItem = {
+      id: Date.now().toString(),
+      title: downloadState.title,
+      date: new Date().toISOString(),
+      filepath: downloadState.filepath,
+      format: downloadState.format,
+      thumbnail: downloadState.thumbnail
+    };
+    
+    // Add to beginning and keep max 20 items
+    history.unshift(newItem);
+    if (history.length > 20) {
+      history.length = 20;
+    }
+    
+    browser.storage.local.set({ downloadHistory: history });
   });
 }

@@ -29,9 +29,13 @@
             <div class="pulse-loader"></div>
           </div>
           <div id="durationBadge" class="duration-badge hidden">00:00</div>
+          <button type="button" id="quickSaveThumbBtn" class="quick-save-thumb hidden" title="Download Cover Image">📷</button>
         </div>
         <div class="video-meta">
-          <p class="video-title" id="videoTitle">Analyzing content...</p>
+          <div class="title-row">
+            <p class="video-title" id="videoTitle">Analyzing content...</p>
+            <span id="playlistBadge" class="playlist-badge hidden">🎵 0</span>
+          </div>
           <p class="video-uploader" id="videoUploader"></p>
         </div>
       </div>
@@ -95,6 +99,7 @@
         </div>
         <div class="result-actions">
           <button type="button" id="openFolderBtn" class="btn-outline">Open Folder</button>
+          <button type="button" id="saveThumbBtn" class="btn-outline hidden">📷 Cover</button>
           <button type="button" id="trimVideoBtn" class="btn-outline btn-trim hidden">✂️ Trim</button>
         </div>
       </div>
@@ -121,6 +126,28 @@
         </div>
         <label class="switch" id="twitterToggleLabel">
           <input type="checkbox" id="twitterToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item setting-row">
+        <div class="setting-row-text">
+          <label>Download Subtitles</label>
+          <small class="setting-hint">Download available subtitles (.srt) with video.</small>
+        </div>
+        <label class="switch" id="subtitlesToggleLabel">
+          <input type="checkbox" id="subtitlesToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <div class="setting-item setting-row">
+        <div class="setting-row-text">
+          <label>Normalize Audio</label>
+          <small class="setting-hint">Normalize volume levels after download (EBU R128).</small>
+        </div>
+        <label class="switch" id="normalizeToggleLabel">
+          <input type="checkbox" id="normalizeToggle" />
           <span class="slider"></span>
         </label>
       </div>
@@ -168,6 +195,16 @@
         <div id="convertErrorSection" class="convert-error hidden">
           <span class="convert-error-icon">❌</span>
           <span id="convertErrorText" class="convert-error-text">Error</span>
+        </div>
+      </div>
+
+      <div class="setting-item">
+        <label>Download History</label>
+        <div class="history-container">
+          <div id="historyList" class="history-list">
+            <!-- History items will be injected here -->
+          </div>
+          <button type="button" id="clearHistoryBtn" class="btn-outline btn-small hidden">Clear History</button>
         </div>
       </div>
     </div>
