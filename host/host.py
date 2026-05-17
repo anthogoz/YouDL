@@ -722,6 +722,24 @@ def download_media(url, format_type, progress_callback, quality="best", custom_p
     if last_file and not os.path.isabs(last_file):
         last_file = os.path.join(target_dir, last_file)
 
+    # Clean up external subtitles for video if they are successfully embedded
+    if format_type == "video" and download_subtitles and last_file:
+        try:
+            video_path = Path(last_file)
+            video_dir = video_path.parent
+            video_stem = video_path.stem
+            
+            for item in video_dir.iterdir():
+                if item.is_file() and item.name.startswith(video_stem) and item.suffix.lower() in ['.srt', '.vtt', '.ass']:
+                    rel_name = item.name[len(video_stem):]
+                    if rel_name.startswith('.') and rel_name.count('.') >= 1:
+                        try:
+                            os.remove(item)
+                        except Exception:
+                            pass
+        except Exception:
+            pass
+
     # Return the directory and the actual file path
     return str(target_dir), last_file
 
