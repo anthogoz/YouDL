@@ -4,6 +4,7 @@ import type { DownloadState, NativeMessage } from '@/types';
 const HOST_NAME = 'com.typebeat.downloader';
 
 let nativePort: any = null;
+let pendingTwitterConvert = false;
 
 
 const downloadState: DownloadState = {
@@ -38,19 +39,21 @@ export default defineBackground(() => {
       }
 
       if (message.type === 'start_download') {
-        startDownload(message.url, message.format, message.quality, message.customPath);
+        startDownload(message.url, message.format, message.quality, message.customPath, message.convertForTwitter);
         sendResponse({ success: true });
         return true;
       }
 
       if (message.type === 'cancel_download') {
+        pendingTwitterConvert = false;
         if (nativePort) {
           nativePort.disconnect();
           nativePort = null;
         }
-        if (downloadState.status === 'downloading') {
+        if (downloadState.status === 'downloading' || downloadState.status === 'converting') {
+          const wasConverting = downloadState.status === 'converting';
           downloadState.status = 'error';
-          downloadState.errorMessage = 'Download cancelled';
+          downloadState.errorMessage = wasConverting ? 'Conversion cancelled' : 'Download cancelled';
           broadcastState();
         }
         sendResponse({ success: true });
@@ -112,6 +115,21 @@ export default defineBackground(() => {
         return true;
       }
 
+      if (message.type === 'pick_file_convert') {
+        ensureNativePort().postMessage({ action: 'pick_file_convert' });
+        sendResponse({ success: true });
+        return true;
+      }
+
+      if (message.type === 'convert_twitter') {
+        ensureNativePort().postMessage({
+          action: 'convert_twitter',
+          inputPath: message.inputPath,
+        });
+        sendResponse({ success: true });
+        return true;
+      }
+
       return false;
     },
   );
@@ -163,11 +181,28 @@ function handleNativeMessage(response: NativeMessage): void {
     downloadState.details = 'Processing...';
     broadcastState();
   } else if (response.status === 'ok' && 'file' in response && response.file) {
-    downloadState.status = 'success';
+    // Store download result
     downloadState.title = response.title || downloadState.title;
     downloadState.file = response.file;
     downloadState.filepath = response.filepath || '';
-    broadcastState();
+
+    // Download finished — check if we need to auto-convert for Twitter
+    if (pendingTwitterConvert && downloadState.filepath) {
+      pendingTwitterConvert = false;
+      downloadState.status = 'converting';
+      downloadState.percent = 0;
+      downloadState.text = '0%';
+      downloadState.details = 'Re-encoding to H.264+AAC...';
+      broadcastState();
+      ensureNativePort().postMessage({
+        action: 'convert_twitter',
+        inputPath: downloadState.filepath,
+      });
+    } else {
+      pendingTwitterConvert = false;
+      downloadState.status = 'success';
+      broadcastState();
+    }
   } else if (response.status === 'error') {
     downloadState.status = 'error';
     downloadState.errorMessage = response.detail || 'Unknown error';
@@ -190,6 +225,32 @@ function handleNativeMessage(response: NativeMessage): void {
     broadcastToExtension({ type: 'pick_folder_result', path: response.path });
   } else if (response.status === 'pick_file_result') {
     broadcastToExtension({ type: 'pick_file_result', path: response.path });
+  } else if (response.status === 'pick_file_convert_result') {
+    broadcastToExtension({ type: 'pick_file_convert_result', path: response.path });
+  } else if (response.status === 'convert_progress') {
+    // If we're in auto-convert mode (download flow), update downloadState
+    if (downloadState.status === 'converting') {
+      downloadState.percent = response.percent;
+      downloadState.text = `${response.percent}%`;
+      broadcastState();
+    }
+    // Also forward to settings converter UI
+    broadcastToExtension({ type: 'convert_progress', percent: response.percent });
+  } else if (response.status === 'convert_ok') {
+    // If we were in auto-convert mode, show success with the converted file
+    if (downloadState.status === 'converting') {
+      downloadState.status = 'success';
+      downloadState.filepath = response.file;
+      broadcastState();
+    }
+    broadcastToExtension({ type: 'convert_complete', outputPath: response.file });
+  } else if (response.status === 'convert_error') {
+    // If auto-convert failed, still show success for the download itself
+    if (downloadState.status === 'converting') {
+      downloadState.status = 'success';
+      broadcastState();
+    }
+    broadcastToExtension({ type: 'convert_error', detail: response.detail });
   }
 }
 
@@ -208,8 +269,10 @@ function fetchInfo(url: string): void {
   ensureNativePort().postMessage({ action: 'get_info', url });
 }
 
-function startDownload(url: string, format: string, quality: string, customPath?: string): void {
-  if (downloadState.status === 'downloading') return;
+function startDownload(url: string, format: string, quality: string, customPath?: string, convertForTwitter?: boolean): void {
+  if (downloadState.status === 'downloading' || downloadState.status === 'converting') return;
+
+  pendingTwitterConvert = format === 'video' && !!convertForTwitter;
 
   downloadState.status = 'downloading';
   downloadState.percent = 0;

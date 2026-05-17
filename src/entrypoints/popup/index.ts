@@ -37,12 +37,23 @@ const downloadPathInput = document.getElementById('downloadPathInput') as HTMLIn
 const browseFolderBtn = document.getElementById('browseFolderBtn') as HTMLButtonElement;
 const resetFolderBtn = document.getElementById('resetFolderBtn') as HTMLButtonElement;
 const importFileBtn = document.getElementById('importFileBtn') as HTMLButtonElement;
+const twitterToggle = document.getElementById('twitterToggle') as HTMLInputElement;
+const convertTwitterBtn = document.getElementById('convertTwitterBtn') as HTMLButtonElement;
+const convertProgressSection = document.getElementById('convertProgressSection') as HTMLDivElement;
+const convertProgressPercent = document.getElementById('convertProgressPercent') as HTMLSpanElement;
+const convertProgressFill = document.getElementById('convertProgressFill') as HTMLDivElement;
+const convertResultSection = document.getElementById('convertResultSection') as HTMLDivElement;
+const convertResultText = document.getElementById('convertResultText') as HTMLSpanElement;
+const convertOpenFolderBtn = document.getElementById('convertOpenFolderBtn') as HTMLButtonElement;
+const convertErrorSection = document.getElementById('convertErrorSection') as HTMLDivElement;
+const convertErrorText = document.getElementById('convertErrorText') as HTMLSpanElement;
 
 // ── State ──
 let currentUrl = '';
 let selectedAudioQuality = 'best';
 let selectedVideoQuality = 'best';
 let customDownloadPath = '';
+let alwaysConvertTwitter = false;
 
 // ── Initialization ──
 browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
@@ -67,11 +78,21 @@ browser.runtime.sendMessage({ type: 'get_state' }).then((state: DownloadState) =
 });
 
 // Load settings
-browser.storage.local.get(['customDownloadPath']).then((res) => {
+browser.storage.local.get(['customDownloadPath', 'alwaysConvertTwitter']).then((res) => {
   if (res.customDownloadPath) {
     customDownloadPath = res.customDownloadPath;
     downloadPathInput.value = customDownloadPath;
   }
+  if (res.alwaysConvertTwitter) {
+    alwaysConvertTwitter = true;
+    twitterToggle.checked = true;
+  }
+});
+
+// Twitter/X toggle persistence
+twitterToggle.addEventListener('change', () => {
+  alwaysConvertTwitter = twitterToggle.checked;
+  browser.storage.local.set({ alwaysConvertTwitter });
 });
 
 // ── Settings Navigation ──
@@ -85,6 +106,7 @@ settingsToggle.addEventListener('click', () => {
     homeSection.classList.add('hidden');
     settingsSection.classList.remove('hidden');
     settingsToggle.style.opacity = '1';
+    settingsSection.scrollIntoView({ behavior: 'smooth' });
   }
 });
 
@@ -95,6 +117,19 @@ browseFolderBtn.addEventListener('click', () => {
 
 importFileBtn.addEventListener('click', () => {
   browser.runtime.sendMessage({ type: 'pick_file' });
+});
+
+convertTwitterBtn.addEventListener('click', () => {
+  // Reset state
+  convertProgressSection.classList.add('hidden');
+  convertResultSection.classList.add('hidden');
+  convertErrorSection.classList.add('hidden');
+  browser.runtime.sendMessage({ type: 'pick_file_convert' });
+});
+
+convertOpenFolderBtn.addEventListener('click', () => {
+  const path = convertOpenFolderBtn.dataset.path;
+  if (path) browser.runtime.sendMessage({ type: 'open_folder', path });
 });
 
 downloadPathInput.addEventListener('change', () => {
@@ -118,6 +153,33 @@ browser.runtime.onMessage.addListener((message: any) => {
     browser.storage.local.set({ customDownloadPath });
   } else if (message.type === 'pick_file_result') {
     browser.tabs.create({ url: browser.runtime.getURL(`trim.html?file=${encodeURIComponent(message.path)}`) });
+  } else if (message.type === 'pick_file_convert_result') {
+    // User picked a file for Twitter conversion — start converting
+    convertTwitterBtn.setAttribute('disabled', '');
+    convertProgressSection.classList.remove('hidden');
+    convertResultSection.classList.add('hidden');
+    convertErrorSection.classList.add('hidden');
+    convertProgressPercent.textContent = '0%';
+    convertProgressFill.style.width = '0%';
+    browser.runtime.sendMessage({ type: 'convert_twitter', inputPath: message.path });
+  } else if (message.type === 'convert_progress') {
+    convertProgressPercent.textContent = `${message.percent}%`;
+    convertProgressFill.style.width = `${message.percent}%`;
+  } else if (message.type === 'convert_complete') {
+    convertTwitterBtn.removeAttribute('disabled');
+    convertProgressSection.classList.add('hidden');
+    convertResultSection.classList.remove('hidden');
+    convertErrorSection.classList.add('hidden');
+    // Show just the filename
+    const fileName = message.outputPath.split(/[\\/]/).pop() || 'Converted!';
+    convertResultText.textContent = fileName;
+    convertOpenFolderBtn.dataset.path = message.outputPath;
+  } else if (message.type === 'convert_error') {
+    convertTwitterBtn.removeAttribute('disabled');
+    convertProgressSection.classList.add('hidden');
+    convertResultSection.classList.add('hidden');
+    convertErrorSection.classList.remove('hidden');
+    convertErrorText.textContent = message.detail || 'Conversion failed';
   }
 });
 
@@ -169,11 +231,23 @@ function renderState(state: DownloadState): void {
     progressPercent.textContent = state.text || '0%';
     progressFill.style.width = `${state.percent}%`;
     progressDetails.textContent = state.details || 'Processing...';
+  } else if (state.status === 'converting') {
+    setStatus('loading', 'Converting for Twitter/X...');
+    downloadAudioBtn.disabled = true;
+    downloadVideoBtn.disabled = true;
+    progressSection.classList.remove('hidden');
+    resultSection.classList.add('hidden');
+
+    progressPercent.textContent = state.text || '0%';
+    progressFill.style.width = `${state.percent}%`;
+    progressFill.classList.add('convert-fill');
+    progressDetails.textContent = 'Re-encoding to H.264+AAC...';
   } else if (state.status === 'success') {
     setStatus('active', 'Download finished');
     downloadAudioBtn.disabled = false;
     downloadVideoBtn.disabled = false;
     progressSection.classList.add('hidden');
+    progressFill.classList.remove('convert-fill');
     resultSection.classList.remove('hidden');
     resultFilePath.textContent = state.file || '';
     openFolderBtn.dataset.path = state.file;
@@ -190,12 +264,14 @@ function renderState(state: DownloadState): void {
     downloadAudioBtn.disabled = false;
     downloadVideoBtn.disabled = false;
     progressSection.classList.add('hidden');
+    progressFill.classList.remove('convert-fill');
   } else {
     // Idle
     setStatus('active', 'Ready');
     downloadAudioBtn.disabled = false;
     downloadVideoBtn.disabled = false;
     progressSection.classList.add('hidden');
+    progressFill.classList.remove('convert-fill');
   }
 }
 
@@ -234,6 +310,7 @@ downloadVideoBtn.addEventListener('click', () => {
     format: 'video',
     quality: selectedVideoQuality,
     customPath: customDownloadPath || undefined,
+    convertForTwitter: alwaysConvertTwitter,
   });
 });
 

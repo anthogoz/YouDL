@@ -1,6 +1,6 @@
 // ── Download State ──
 
-export type DownloadStatus = 'idle' | 'loading_info' | 'downloading' | 'success' | 'error';
+export type DownloadStatus = 'idle' | 'loading_info' | 'downloading' | 'converting' | 'success' | 'error';
 
 export type FormatType = 'audio' | 'video';
 
@@ -98,14 +98,19 @@ export type NativeMessage =
   | { status: 'pick_folder_result'; path: string }
   | { status: 'pick_folder_cancelled' }
   | { status: 'pick_file_result'; path: string }
-  | { status: 'pick_file_cancelled' };
+  | { status: 'pick_file_cancelled' }
+  | { status: 'pick_file_convert_result'; path: string }
+  | { status: 'pick_file_convert_cancelled' }
+  | { status: 'convert_progress'; percent: number }
+  | { status: 'convert_ok'; file: string }
+  | { status: 'convert_error'; detail: string };
 
 // ── Extension Messages (popup ↔ background) ──
 
 export type ExtensionMessage =
   | { type: 'get_state' }
   | { type: 'fetch_info'; url: string }
-  | { type: 'start_download'; url: string; format: FormatType; quality: string; customPath?: string }
+  | { type: 'start_download'; url: string; format: FormatType; quality: string; customPath?: string; convertForTwitter?: boolean }
   | { type: 'cancel_download' }
   | { type: 'open_folder'; path: string }
   | { type: 'state_update'; state: DownloadState }
@@ -122,4 +127,10 @@ export type ExtensionMessage =
   | { type: 'pick_folder' }
   | { type: 'pick_folder_result'; path: string }
   | { type: 'pick_file' }
-  | { type: 'pick_file_result'; path: string };
+  | { type: 'pick_file_result'; path: string }
+  | { type: 'pick_file_convert' }
+  | { type: 'pick_file_convert_result'; path: string }
+  | { type: 'convert_twitter'; inputPath: string }
+  | { type: 'convert_progress'; percent: number }
+  | { type: 'convert_complete'; outputPath: string }
+  | { type: 'convert_error'; detail: string };

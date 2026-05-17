@@ -114,6 +114,17 @@
         <small class="setting-hint">Where downloaded files will be saved.</small>
       </div>
 
+      <div class="setting-item setting-row">
+        <div class="setting-row-text">
+          <label>Twitter/X Mode</label>
+          <small class="setting-hint">Auto-convert videos to H.264+AAC after download. Takes longer and uses more disk space (2 files created).</small>
+        </div>
+        <label class="switch" id="twitterToggleLabel">
+          <input type="checkbox" id="twitterToggle" />
+          <span class="slider"></span>
+        </label>
+      </div>
+
       <div class="setting-item">
         <label>Trim Engine</label>
         <div class="settings-actions">
@@ -122,6 +133,42 @@
           </button>
         </div>
         <small class="setting-hint">Manually open the Premium Trimmer.</small>
+      </div>
+
+      <div class="setting-item">
+        <label>Twitter/X Converter</label>
+        <div class="settings-actions">
+          <button type="button" id="convertTwitterBtn" class="btn-outline btn-twitter">
+            <span class="icon">𝕏</span> Convert Video for Twitter/X
+          </button>
+        </div>
+        <small class="setting-hint">Re-encode to H.264+AAC MP4 — compatible with Twitter/X uploads.</small>
+        
+        <!-- Conversion progress -->
+        <div id="convertProgressSection" class="convert-progress hidden">
+          <div class="convert-progress-header">
+            <span id="convertProgressLabel">Converting...</span>
+            <span id="convertProgressPercent">0%</span>
+          </div>
+          <div class="progress-track">
+            <div id="convertProgressFill" class="progress-fill convert-fill"></div>
+          </div>
+        </div>
+        
+        <!-- Conversion result -->
+        <div id="convertResultSection" class="convert-result hidden">
+          <div class="convert-result-content">
+            <span class="convert-result-icon">✅</span>
+            <span id="convertResultText" class="convert-result-text">Converted!</span>
+          </div>
+          <button type="button" id="convertOpenFolderBtn" class="btn-outline btn-small">Open Folder</button>
+        </div>
+
+        <!-- Conversion error -->
+        <div id="convertErrorSection" class="convert-error hidden">
+          <span class="convert-error-icon">❌</span>
+          <span id="convertErrorText" class="convert-error-text">Error</span>
+        </div>
       </div>
     </div>
   </div>

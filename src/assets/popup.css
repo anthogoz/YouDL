@@ -115,6 +115,65 @@ body {
   gap: 8px;
 }
 
+.setting-row {
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.setting-row-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Toggle Switch */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
+  border-radius: 22px;
+  transition: all 0.3s ease;
+}
+
+.slider::before {
+  content: '';
+  position: absolute;
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background: var(--accent-secondary);
+  border-radius: 50%;
+  transition: all 0.3s ease;
+}
+
+input:checked + .slider {
+  background: rgba(29, 161, 242, 0.3);
+  border-color: rgba(29, 161, 242, 0.5);
+}
+
+input:checked + .slider::before {
+  transform: translateX(18px);
+  background: #1da1f2;
+}
+
 .setting-item label {
   font-size: 0.85rem;
   font-weight: 500;
@@ -472,6 +531,93 @@ body {
 .btn-trim:hover {
   background: rgba(139, 92, 246, 0.1);
   border-color: rgba(139, 92, 246, 0.6);
+}
+
+/* ── Twitter/X Converter ── */
+.btn-twitter {
+  border-color: rgba(29, 161, 242, 0.4);
+  color: #1da1f2;
+  transition: all 0.2s ease;
+}
+
+.btn-twitter:hover {
+  background: rgba(29, 161, 242, 0.1);
+  border-color: rgba(29, 161, 242, 0.6);
+}
+
+.btn-twitter:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.convert-progress {
+  margin-top: 10px;
+  background: var(--card-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 12px;
+  animation: slideUp 0.3s ease;
+}
+
+.convert-progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #1da1f2;
+}
+
+.convert-fill {
+  background: linear-gradient(90deg, #1da1f2, #1a8cd8) !important;
+}
+
+.convert-result {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(29, 161, 242, 0.05);
+  border: 1px solid rgba(29, 161, 242, 0.2);
+  border-radius: 10px;
+  animation: zoomIn 0.3s ease;
+}
+
+.convert-result-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.convert-result-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.convert-error {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(239, 68, 68, 0.05);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 10px;
+  animation: zoomIn 0.3s ease;
+}
+
+.convert-error-text {
+  font-size: 12px;
+  color: var(--error);
+  font-weight: 500;
 }
 
 /* ── Utils & Animations ── */

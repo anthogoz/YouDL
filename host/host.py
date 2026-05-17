@@ -313,6 +313,127 @@ def trim_video(input_path, start_time, end_time, progress_callback):
     return output_path
 
 
+def get_media_duration(input_path):
+    """Get the duration of a media file in seconds using ffprobe."""
+    cmd = [
+        "ffprobe",
+        "-v", "error",
+        "-show_entries", "format=duration",
+        "-of", "default=noprint_wrappers=1:nokey=1",
+        input_path,
+    ]
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+        return float(result.stdout.strip())
+    except (ValueError, Exception):
+        return 0
+
+
+def convert_for_twitter(input_path, progress_callback):
+    """
+    Convert a video to be compatible with Twitter/X.
+    Twitter requires: H.264 video, AAC audio, MP4 container, yuv420p pixel format.
+    Max resolution 1920x1200, max file size 512MB, max duration 2:20.
+    Returns the output file path on success.
+    """
+    input_path = os.path.normpath(os.path.abspath(input_path))
+    base, _ = os.path.splitext(input_path)
+    output_path = f"{base}_twitter.mp4"
+
+    # If output already exists, add a number
+    counter = 1
+    while os.path.exists(output_path):
+        output_path = f"{base}_twitter_{counter}.mp4"
+        counter += 1
+
+    # Get duration for progress calculation
+    duration = get_media_duration(input_path)
+
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", input_path,
+        # Video: H.264 High profile with yuv420p (mandatory for Twitter)
+        "-c:v", "libx264",
+        "-profile:v", "high",
+        "-level:v", "4.2",
+        "-pix_fmt", "yuv420p",
+        "-preset", "medium",
+        "-crf", "23",
+        # Cap resolution at 1920x1200 (Twitter max), keep aspect ratio
+        "-vf", "scale='min(1920,iw)':'min(1200,ih)':force_original_aspect_ratio=decrease:force_divisible_by=2",
+        # Audio: AAC stereo
+        "-c:a", "aac",
+        "-b:a", "192k",
+        "-ac", "2",
+        "-ar", "44100",
+        # MP4 with faststart for web streaming
+        "-movflags", "+faststart",
+        "-progress", "pipe:1",
+        output_path,
+    ]
+
+    env = os.environ.copy()
+    env["PYTHONIOENCODING"] = "utf-8"
+
+    process = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.DEVNULL,
+        text=True,
+        encoding="utf-8",
+        env=env,
+        creationflags=subprocess.CREATE_NO_WINDOW,
+    )
+
+    for line in iter(process.stdout.readline, ''):
+        line = line.strip()
+        if not line:
+            continue
+
+        out_time_s = None
+        if line.startswith("out_time_us=") or line.startswith("out_time_ms="):
+            try:
+                raw_val = int(line.split("=")[1])
+                out_time_s = raw_val / 1_000_000
+            except (ValueError, IndexError):
+                pass
+        elif line.startswith("out_time="):
+            try:
+                time_str = line.split("=")[1].strip()
+                parts = time_str.split(":")
+                if len(parts) == 3:
+                    h, m, s = float(parts[0]), float(parts[1]), float(parts[2])
+                    out_time_s = h * 3600 + m * 60 + s
+            except (ValueError, IndexError):
+                pass
+
+        if out_time_s is not None and duration > 0:
+            percent = min(100, (out_time_s / duration) * 100)
+            try:
+                progress_callback({
+                    "status": "convert_progress",
+                    "percent": round(percent, 1)
+                })
+            except ConnectionError:
+                process.terminate()
+                raise
+
+    process.stdout.close()
+    return_code = process.wait()
+
+    if return_code != 0:
+        raise Exception(f"FFmpeg conversion failed (code {return_code})")
+
+    return output_path
+
+
 def generate_waveform(input_path):
     """
     Generate a waveform PNG from the given media file using FFmpeg.
@@ -723,6 +844,48 @@ def main():
                     send_message({"status": "pick_file_cancelled"})
             except Exception as e:
                 send_message({"status": "error", "detail": str(e)})
+
+        elif action == "pick_file_convert":
+            try:
+                root = tk.Tk()
+                root.withdraw()
+                root.attributes('-topmost', True)
+                file_path = filedialog.askopenfilename(
+                    parent=root,
+                    title="Select Video to Convert for Twitter/X",
+                    filetypes=[("Video Files", "*.mp4 *.webm *.mkv *.mov *.avi *.flv"), ("All Files", "*.*")]
+                )
+                root.destroy()
+                if file_path:
+                    send_message({"status": "pick_file_convert_result", "path": file_path})
+                else:
+                    send_message({"status": "pick_file_convert_cancelled"})
+            except Exception as e:
+                send_message({"status": "error", "detail": str(e)})
+
+        elif action == "convert_twitter":
+            input_path = message.get("inputPath", "")
+
+            if not input_path:
+                send_message({"status": "convert_error", "detail": "No input file provided"})
+                continue
+            if not is_safe_path(input_path):
+                send_message({"status": "convert_error", "detail": "File not found"})
+                continue
+
+            try:
+                output_path = convert_for_twitter(input_path, send_message)
+                send_message({
+                    "status": "convert_ok",
+                    "file": output_path
+                })
+            except ConnectionError:
+                break
+            except Exception as e:
+                try:
+                    send_message({"status": "convert_error", "detail": str(e)})
+                except ConnectionError:
+                    break
 
         else:
             send_message({"status": "error", "detail": f"Unknown action: {action}"})
