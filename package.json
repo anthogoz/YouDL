@@ -1,7 +1,7 @@
 {
   "name": "youdl",
   "description": "Download media from virtually any website (YouTube, SoundCloud, etc.) as Audio or Video.",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "author": "Lnkhey",
   "license": "MIT",
   "repository": {
