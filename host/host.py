@@ -631,6 +631,7 @@ def download_media(url, format_type, progress_callback, quality="best", custom_p
                 "--ignore-errors",
                 "--write-subs",
                 "--write-auto-subs",
+                "--embed-subs",
                 "--sub-langs", "fr,en",
                 "--convert-subs", "srt"
             ])
