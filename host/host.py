@@ -594,6 +594,7 @@ def download_media(url, format_type, progress_callback, quality="best", custom_p
         
         if download_subtitles:
             cmd.extend([
+                "--ignore-errors",
                 "--write-subs",
                 "--write-auto-subs",
                 "--sub-langs", "fr,en",
@@ -627,6 +628,7 @@ def download_media(url, format_type, progress_callback, quality="best", custom_p
         
         if download_subtitles:
             cmd.extend([
+                "--ignore-errors",
                 "--write-subs",
                 "--write-auto-subs",
                 "--sub-langs", "fr,en",
